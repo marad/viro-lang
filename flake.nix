@@ -14,7 +14,17 @@
         buildInputs = [
           pkgs.lua5_4
           pkgs.lua54Packages.luarocks
+          pkgs.lua54Packages.lpeg
+          pkgs.lua54Packages.busted
+
+          pkgs.gcc 
+          pkgs.pkg-config
+          pkgs.glibc
         ];
+
+        shellHook = ''
+          export RT_DIR="${pkgs.glibc}"
+        '';
       };
 
       packages.${system}.luaEnv = pkgs.buildEnv {
@@ -22,6 +32,12 @@
         paths = [
           pkgs.lua5_4
           pkgs.lua54Packages.luarocks
+          pkgs.lua54Packages.lpeg
+          pkgs.lua54Packages.busted
+
+          pkgs.gcc 
+          pkgs.pkg-config
+          pkgs.glibc
         ];
       };
     };

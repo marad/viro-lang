@@ -1,22 +1,29 @@
 package = "viro"
 version = "dev-1"
+rockspec_format = "3.0"
 source = {
    url = "*** please add URL for source tarball, zip or repository here ***"
 }
 description = {
-   homepage = "*** please enter a project homepage ***",
-   license = "*** please specify a license ***"
+   homepage = "https://github.com/marad/viro",
+   license = "MIT"
 }
 dependencies = {
-   queries = {}
 }
 build_dependencies = {
-   queries = {}
 }
 build = {
    type = "builtin",
-   modules = {}
+   modules = {
+      ["viro"] = "src/main.lua"
+   }
 }
 test_dependencies = {
-   queries = {}
+}
+
+test = {
+   type = "busted",
+   flags = {
+      --"--verbose"
+   }
 }
