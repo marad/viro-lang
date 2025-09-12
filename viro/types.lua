@@ -1,45 +1,39 @@
 local types = {
-  word = 1,
-  set_word = 2,
-  set_path = 3,
-  block = 4,
-  string = 5,
-  number = 6,
-  fn = 7,
+	word = "word",
+	set_word = "set-word",
+	set_path = "set-path",
+	block = "block",
+	string = "string",
+	number = "number",
+	fn = "fn",
 }
 
-
-
-local function makePos(from, to)
-  return { from = from, to = to }
+function types.makeWord(word)
+	return { type = types.word, name = word }
 end
 
-function types.makeWord(from, word, to)
-  return { type = types.word, name = word, srcPos = makePos(from, to) }
+function types.makeSetWord(word)
+	return { type = types.set_word, word = word }
 end
 
-function types.makeSetWord(from, word, to)
-  return { type = types.set_word, word = word, srcPos = makePos(from, to) }
+function types.makeSetPath(word, path)
+	return { type = types.set_path, word = word, path = path }
 end
 
-function types.makeSetPath(from, word, path, to)
-  return { type = types.set_path, word = word, path = path, srcPos = makePos(from, to) }
+function types.makeBlock(content)
+	return { type = types.block, value = content }
 end
 
-function types.makeBlock(from, content, to)
-  return { type = types.block, value = content, srcPos = makePos(from, to) }
+function types.makeString(content)
+	return { type = types.string, value = content }
 end
 
-function types.makeString(from, content, to)
-  return { type = types.string, value = content, srcPos = makePos(from, to) }
+function types.makeNumber(value)
+	return { type = types.number, value = tonumber(value) }
 end
 
-function types.makeNumber(from, value, to)
-  return { type = types.number, value = tonumber(value), srcPos = makePos(from, to) }
-end
-
-function types.makeFn(from, fn, to)
-  return { type = types.fn, value = fn, srcPos = makePos(from, to) }
+function types.makeFn(fn, arg_count)
+	return { type = types.fn, fn = fn, arg_count = arg_count }
 end
 
 return types

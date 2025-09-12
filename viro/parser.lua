@@ -1,7 +1,40 @@
-local lpeg = require "lpeg"
+local lpeg = require("lpeg")
 lpeg.locale(lpeg)
 
-local types = require "viro.types"
+-- TODO: (https://www.rebol.com/r3/docs/guide/code-syntax.html)
+-- Add parens for groupping
+-- Words should allow symbols: ?, -, !, #, $, @, %, ^, &, +, `, ~, |, =, *
+-- Set_Path (x/1: 10)
+-- "/" powinno kończyć słowo - bo zaczyna ścieżkę
+-- Bloki powinny mieć wskaźnik instrukcji (dla funkcji back, next, etc)
+
+local types = require("viro.types")
+local parser = {}
+
+local function withPos(node, from, to)
+	node.srcPos = { from = from, to = to }
+	return node
+end
+
+function parser.wordNode(from, word, to)
+	return withPos(types.makeWord(word), from, to)
+end
+
+function parser.setWordNode(from, word, to)
+	return withPos(types.makeWord(word), from, to)
+end
+
+function parser.blockNode(from, content, to)
+	return withPos(types.makeBlock(content), from, to)
+end
+
+function parser.stringNode(from, content, to)
+	return withPos(types.makeString(content), from, to)
+end
+
+function parser.numberNode(from, value, to)
+	return withPos(types.makeNumber(value), from, to)
+end
 
 local P, V, S, C, Ct, Cp = lpeg.P, lpeg.V, lpeg.S, lpeg.C, lpeg.Ct, lpeg.Cp
 
@@ -12,28 +45,26 @@ local period = lpeg.S(".")
 local colon = lpeg.S(":")
 local quote = S('"')
 local string_content = (1 - quote) ^ 0
-local lbrace = S('{')
-local rbrace = S('}')
+local lbrace = S("{")
+local rbrace = S("}")
 local braced_string_content = (1 - rbrace) ^ 0
 local word_char = lpeg.alpha + S("-+?%!#$@^&~`*'/=")
 
-local grammar = P {
-  "Viro",
-  Viro = ig * (Cp() * Ct(V("Expr") ^ 1) * Cp()) / types.makeBlock,
-  Expr = V("Comment") + V("Block") + V("Set_Word") + V("Braced_String") + V("String") + V("Number") + V("Word"),
-  Word = (Cp() * C(word_char ^ 1) * Cp() * ig) / types.makeWord,
-  Number = (Cp() * C(digit ^ 1 * (period * digit ^ 1) ^ 0) * Cp() * ig) / types.makeNumber,
-  String = (Cp() * quote * C(string_content) * quote * Cp() * ig) / types.makeString,
-  Braced_String = (Cp() * lbrace * C(braced_string_content) * rbrace * Cp() * ig) / types.makeString,
-  Set_Word = (Cp() * V("Word") * colon * Cp() * ig) / types.makeSetWord,
-  Block = (Cp() * S("[") * ig * Ct(V("Expr") ^ 0) * ig * S("]") * Cp() * ig) / types.makeBlock,
-  Comment = S(";") * ((1 - S("\n")) ^ 0) * ig,
-}
-
-local parser = {}
+local grammar = P({
+	"Viro",
+	Viro = ig * (Cp() * Ct(V("Expr") ^ 1) * Cp()) / parser.blockNode,
+	Expr = V("Comment") + V("Block") + V("Set_Word") + V("Braced_String") + V("String") + V("Number") + V("Word"),
+	Word = (Cp() * C(word_char ^ 1) * Cp() * ig) / parser.wordNode,
+	Number = (Cp() * C(digit ^ 1 * (period * digit ^ 1) ^ 0) * Cp() * ig) / parser.numberNode,
+	String = (Cp() * quote * C(string_content) * quote * Cp() * ig) / parser.stringNode,
+	Braced_String = (Cp() * lbrace * C(braced_string_content) * rbrace * Cp() * ig) / parser.stringNode,
+	Set_Word = (Cp() * V("Word") * colon * Cp() * ig) / parser.setWordNode,
+	Block = (Cp() * S("[") * ig * Ct(V("Expr") ^ 0) * ig * S("]") * Cp() * ig) / parser.blockNode,
+	Comment = S(";") * ((1 - S("\n")) ^ 0) * ig,
+})
 
 function parser.parse(code)
-  return grammar:match(code)
+	return grammar:match(code)
 end
 
 return parser

@@ -1,18 +1,22 @@
-require "viro.util"
-local process = require "viro.processor"
-local parser = require "viro.parser"
-local env = require "viro.env"
-
+require("viro.util")
+local process = require("viro.processor")
+local parser = require("viro.parser")
+local env = require("viro.env")
+local default_ctx = require("viro.default_ctx")
 
 print("Viro REPL v0.0.1-alpha")
 
-local root_ctx = env.new()
-local repl_ctx = env.new(root_ctx)
+local repl_ctx = env.new(default_ctx)
 
 while true do
-  io.write("> ")
-  local code = io.read()
-  local ast = parser.parse(code)
-  local result = process(ast, repl_ctx)
-  print(table.dump(result))
+	local ok, err = pcall(function()
+		io.write("> ")
+		local code = io.read()
+		local ast = parser.parse(code)
+		local result = process(ast, repl_ctx)
+		print(default_ctx.mold.fn(repl_ctx, result).value)
+	end)
+	if not ok then
+		print(err)
+	end
 end

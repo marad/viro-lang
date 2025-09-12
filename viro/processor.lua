@@ -1,15 +1,18 @@
-local types = require 'viro.types'
+local types = require("viro.types")
 
 local function eval(node, ctx)
-  if node.type == types.word then
-    return ctx[node.name]
-  elseif node.type == types.number then
-    return node
-  else
-    error("Unsupported evaluation: " .. table.dump(node))
-  end
+	if node.type == types.word then
+		return ctx[node.name]
+	elseif node.type == types.number then
+		return node
+	elseif node.type == types.block then
+		return node
+	elseif node.type == types.string then
+		return node
+	else
+		error("Unsupported evaluation: " .. table.dump(node))
+	end
 end
-
 
 -- TODO:
 -- - Obsługa operatorów infix - działania matematyczne
@@ -21,52 +24,51 @@ end
 --   - Obsługa przy wywołaniu
 
 local function process(block, ctx)
-  assert(block.type == types.block, "Only blocks are supported for processing")
-  local content = block.value
-  local blk_pos = 1
-  local result = nil
-  while blk_pos <= #content do
-    local item = content[blk_pos]
-    --print("Block pos: " .. blk_pos .. " " .. table.dump(item))
+	assert(block.type == types.block, "Only blocks are supported for processing")
+	local content = block.value
+	local blk_pos = 1
+	local result = nil
+	while blk_pos <= #content do
+		local item = content[blk_pos]
+		--print("Block pos: " .. blk_pos .. " " .. table.dump(item))
 
-    if item.type == types.set_word then
-      --
-      -- Set Word instruction
-      --
-      local value = eval(content[blk_pos + 1])
-      ctx[item.word.name] = value
-      result = value
-      blk_pos = blk_pos + 2
-    elseif item.type == types.word then
-      --
-      -- Processing a word
-      --
-      local value = ctx[item.name]
-      blk_pos = blk_pos + 1
-      if value.type == types.fn then
-        local args = { ctx }
-        local argc = value.arg_count
-        local index = 0
-        while index < argc do
-          table.insert(args, eval(content[blk_pos], ctx))
-          index = index + 1
-          blk_pos = blk_pos + 1
-        end
-        result = value.fn(table.unpack(args))
-      else
-        result = value
-      end
-    else
-      --
-      -- Other operations
-      --
-      result = eval(content[blk_pos])
-      blk_pos = blk_pos + 1
-    end
-  end
-  return result
+		if item.type == types.set_word then
+			--
+			-- Set Word instruction
+			--
+			local value = eval(content[blk_pos + 1], ctx)
+			ctx[item.word.name] = value
+			result = value
+			blk_pos = blk_pos + 2
+		elseif item.type == types.word then
+			--
+			-- Processing a word
+			--
+			local value = ctx[item.name]
+			blk_pos = blk_pos + 1
+			if value.type == types.fn then
+				local args = { ctx }
+				local argc = value.arg_count
+				local index = 0
+				while index < argc do
+					table.insert(args, eval(content[blk_pos], ctx))
+					index = index + 1
+					blk_pos = blk_pos + 1
+				end
+				result = value.fn(table.unpack(args))
+			else
+				result = value
+			end
+		else
+			--
+			-- Other operations
+			--
+			result = eval(content[blk_pos])
+			blk_pos = blk_pos + 1
+		end
+	end
+	return result
 end
-
 
 local code = [[
   x: 10
@@ -88,8 +90,5 @@ local code = [[
 --
 --print("Result: " .. table.dump(result))
 --print("Ctx: " .. table.dump(ctx))
-
-
-
 
 return process
