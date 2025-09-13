@@ -21,7 +21,7 @@ function parser.wordNode(from, word, to)
 end
 
 function parser.setWordNode(from, word, to)
-	return withPos(types.makeWord(word), from, to)
+	return withPos(types.makeSetWord(word), from, to)
 end
 
 function parser.blockNode(from, content, to)

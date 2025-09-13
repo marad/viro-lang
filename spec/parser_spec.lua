@@ -40,9 +40,8 @@ RunTests({
 
 	["parse set-path"] = function()
 		local node = parser.parse([[ x/foo: 5 ]]).value[1]
-		print(table.dump(node))
-		assert.are.same(node.word, parser.wordNode(2, "x/foo", 7))
-		assert.are.same(node.type, types.set_word)
+		assert.are.same(parser.wordNode(2, "x/foo", 7), node.word)
+		assert.are.same(types.set_word, node.type)
 	end,
 
 	["parse symbols as words"] = function()
