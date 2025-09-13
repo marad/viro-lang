@@ -1,19 +1,5 @@
 local types = require("viro.types")
 
-local function eval(node, ctx)
-	if node.type == types.word then
-		return ctx[node.name]
-	elseif node.type == types.number then
-		return node
-	elseif node.type == types.block then
-		return node
-	elseif node.type == types.string then
-		return node
-	else
-		error("Unsupported evaluation: " .. table.dump(node))
-	end
-end
-
 -- TODO:
 -- - Obsługa operatorów infix - działania matematyczne
 -- - Podstawowe funkcje
@@ -23,72 +9,49 @@ end
 --   - Obsługa przy definiowaniu
 --   - Obsługa przy wywołaniu
 
-local function process(block, ctx)
-	assert(block.type == types.block, "Only blocks are supported for processing")
-	local content = block.value
-	local blk_pos = 1
-	local result = nil
-	while blk_pos <= #content do
-		local item = content[blk_pos]
-		--print("Block pos: " .. blk_pos .. " " .. table.dump(item))
+local evaluator = {}
 
-		if item.type == types.set_word then
-			--
-			-- Set Word instruction
-			--
-			local value = eval(content[blk_pos + 1], ctx)
-			ctx[item.word.name] = value
-			result = value
-			blk_pos = blk_pos + 2
-		elseif item.type == types.word then
-			--
-			-- Processing a word
-			--
-			local value = ctx[item.name]
-			blk_pos = blk_pos + 1
-			if value.type == types.fn then
-				local args = { ctx }
-				local argc = value.arg_count
-				local index = 0
-				while index < argc do
-					table.insert(args, eval(content[blk_pos], ctx))
-					index = index + 1
-					blk_pos = blk_pos + 1
-				end
-				result = value.fn(table.unpack(args))
-			else
-				result = value
-			end
-		else
-			--
-			-- Other operations
-			--
-			result = eval(content[blk_pos])
-			blk_pos = blk_pos + 1
-		end
+function evaluator.handle_fn_call(fn_node, block, idx, ctx)
+	local evaluated_args = {}
+	local current_index = idx
+	local arg_idx = 1
+	while arg_idx <= fn_node.arg_count do
+		local arg_value, next_idx = evaluator.eval_expr(block, current_index, ctx)
+		table.insert(evaluated_args, arg_value)
+		current_index = next_idx
+		arg_idx = arg_idx + 1
 	end
-	return result
+	local result = fn_node.fn(ctx, table.unpack(evaluated_args))
+	return result, current_index
 end
 
-local code = [[
-  x: 10
-  print x
+function evaluator.eval_expr(block, idx, ctx)
+	local current_value = block.value[idx]
 
-  x
-]]
+	if current_value.type == types.set_word then
+		local word = current_value.word.name
+		local to_set, next_idx = evaluator.eval_expr(block, idx + 1, ctx)
+		ctx[word] = to_set
+		return to_set, next_idx
+	elseif current_value.type == types.word then
+		local value = ctx[current_value.name]
+		if value.type == types.fn then
+			return evaluator.handle_fn_call(value, block, idx + 1, ctx)
+		else
+			return value, idx + 1
+		end
+	else
+		return current_value, idx + 1
+	end
+end
 
---require 'viro.util'
---local env = require 'viro.env'
---local parser = require 'viro.parser'
---local ctx = env.new()
---
---ctx.print = { type = types.fn, fn = function(_, arg) print(table.dump(arg)) end, arg_count = 1 }
---
---
---local block = parser.parse(code)
---local result = process(block, ctx)
---
---print("Result: " .. table.dump(result))
---print("Ctx: " .. table.dump(ctx))
+function evaluator.eval_block(block, ctx)
+	local index = 1
+	local last_result = nil
+	while index <= #block.value do
+		last_result, index = evaluator.eval_expr(block, index, ctx)
+	end
+	return last_result
+end
 
-return process
+return evaluator.eval_block

@@ -11,20 +11,20 @@ RunTests({
 		local ast = parser.parse([[ x: 42 ]])
 		local ctx = env.new()
 		process(ast, ctx)
-		assert.are.same(ctx.x, types.makeNumber(42))
+		assert.are.same(ctx.x, parser.numberNode(5, 42, 7))
 	end,
 
 	["set-word should return a value"] = function()
 		local ast = parser.parse([[ x: 42 ]])
 		local ctx = env.new()
 		local result = process(ast, ctx)
-		assert.are.same(result, types.makeNumber(5, 42, 7))
+		assert.are.same(result, parser.numberNode(5, 42, 7))
 	end,
 
 	["word evaluates to it's value from context"] = function()
 		local ast = parser.parse([[ x ]])
 		local ctx = env.new()
-		ctx.x = types.makeNumber(0, 42, 0)
+		ctx.x = parser.numberNode(0, 42, 0)
 		local result = process(ast, ctx)
 		assert.are.same(result, ctx.x)
 	end,
@@ -32,7 +32,7 @@ RunTests({
 	["set-word evaluates it's value"] = function()
 		local ast = parser.parse([[ x: y ]])
 		local ctx = env.new()
-		ctx.y = types.makeNumber(0, 42, 0)
+		ctx.y = parser.numberNode(0, 42, 0)
 		process(ast, ctx)
 		assert.are.same(ctx.x, ctx.y)
 	end,
@@ -40,10 +40,10 @@ RunTests({
 	["native functions are evaluated and their value is returned"] = function()
 		local ast = parser.parse([[ foo ]])
 		local ctx = env.new()
-		local number = types.makeNumber(0, 42, 0)
-		ctx.foo = types.makeFn(0, function()
+		local number = parser.numberNode(0, 42, 0)
+		ctx.foo = types.makeFn(function()
 			return number
-		end, 0, 0)
+		end, 0)
 		local result = process(ast, ctx)
 		assert.are.same(result, number)
 	end,
@@ -51,11 +51,11 @@ RunTests({
 	["native functions get context as first parameter"] = function()
 		local ast = parser.parse([[ foo ]])
 		local ctx = env.new()
-		local number = types.makeNumber(0, 42, 0)
-		ctx.foo = types.makeFn(0, function(c)
+		local number = parser.numberNode(0, 42, 0)
+		ctx.foo = types.makeFn(function(c)
 			c.bar = number
 			return c.bar
-		end, 0, 0)
+		end, 0)
 		local result = process(ast, ctx)
 		assert.are.same(result, number)
 		assert.are.same(ctx.bar, number)
@@ -68,11 +68,11 @@ RunTests({
 	    add foo bar
 	  ]])
 		local ctx = env.new()
-		ctx.add = types.makeFn(0, function(_, a, b)
-			return types.makeNumber(0, a.value + b.value, 0)
-		end, 2, 0)
+		ctx.add = types.makeFn(function(_, a, b)
+			return parser.numberNode(a.value + b.value)
+		end, 2)
 		local result = process(ast, ctx)
-		assert.are.same(result, types.makeNumber(0, 3, 0))
+		assert.are.same(result, parser.numberNode(3))
 	end,
 
 	["can define new functions"] = function()
