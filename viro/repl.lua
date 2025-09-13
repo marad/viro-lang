@@ -14,7 +14,9 @@ while true do
 		local code = io.read()
 		local ast = parser.parse(code)
 		local result = process(ast, repl_ctx)
-		print(default_ctx.mold.fn(repl_ctx, result).value)
+		if result ~= default_ctx.none then
+			print(default_ctx.mold.fn(repl_ctx, result).value)
+		end
 	end)
 	if not ok then
 		print(err)
