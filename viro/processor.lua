@@ -35,6 +35,9 @@ function evaluator.eval_expr(block, idx, ctx)
 		return to_set, next_idx
 	elseif current_value.type == types.word then
 		local value = ctx[current_value.name]
+		if value == nil then
+			error("Word '" .. current_value.name .. "' has no value assigned")
+		end
 		if value.type == types.fn then
 			return evaluator.handle_fn_call(value, block, idx + 1, ctx)
 		else
@@ -54,4 +57,4 @@ function evaluator.eval_block(block, ctx)
 	return last_result
 end
 
-return evaluator.eval_block
+return evaluator

@@ -1,6 +1,6 @@
 local env = require("viro.env")
 local types = require("viro.types")
-local eval_block = require("viro.processor")
+local evaluator = require("viro.processor")
 local parser = require("viro.parser")
 require("viro.util")
 
@@ -24,15 +24,21 @@ end, 1)
 
 default.reduce = types.makeFn(function(ctx, value)
 	if value.type == types.block then
-		-- something
-		
+		local index = 1
+		local results = {}
+		while index <= #value.value do
+			local result
+			result, index = evaluator.eval_expr(value, index, ctx)
+			table.insert(results, result)
+		end
+		return types.makeBlock(results)
 	else
 		return value
 	end
 end, 1)
 
 default.print = types.makeFn(function(ctx, value)
-	local str = default.form.fn(ctx, value).value
+	local str = default.form.fn(ctx, default.reduce.fn(ctx, value)).value
 	print(str)
 	return types.none
 end, 1)
@@ -44,7 +50,7 @@ default.probe = types.makeFn(function(ctx, value)
 end, 1)
 
 default.load = types.makeFn(function(_, value)
-	return parser.parse(value.value).value[1]
+	return parser.parse(value.value)
 end, 1)
 
 default["type?"] = types.makeFn(function(_, value)
@@ -195,10 +201,14 @@ default.form = dispatch_fn_on_type { method_name = "form" }
 
 default["do"] = types.makeFn(function(ctx, value)
 	if value.type == types.block then
-		return eval_block(value, ctx)
+		return evaluator.eval_block(value, ctx)
 	elseif value.type == types.string then
 		local block = parser.parse(value.value)
-		return eval_block(block, ctx)
+		return evaluator.eval_block(block, ctx)
+	elseif value.type == types.file then
+		local code = default.read.fn(ctx, value)
+		local block = parser.parse(code.value)
+		return evaluator.eval_block(block, ctx)
 	else
 		return value
 	end

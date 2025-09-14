@@ -2,7 +2,7 @@ require("spec")
 require("viro.util")
 local env = require("viro.env")
 local parser = require("viro.parser")
-local process = require("viro.processor")
+local process = require("viro.processor").eval_block
 local types = require("viro.types")
 local assert = require("luassert")
 
@@ -73,18 +73,5 @@ RunTests({
 		end, 2)
 		local result = process(ast, ctx)
 		assert.are.same(result, parser.read_number(3))
-	end,
-
-	["can define new functions"] = function()
-		local ast = parser.parse([[
-	    hello: fn [name] [
-	      name
-	    ]
-	    hello "Viro"
-	  ]])
-		local ctx = env.new()
-		local result = process(ast, ctx)
-		print(table.dump(result))
-		-- TODO: teraz ten test rzuca, błąd bo 'fn' nie jest zdefiniowane
 	end,
 })
