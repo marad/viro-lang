@@ -4,9 +4,12 @@ local types = {
 	set_word = "set-word!",
 	set_path = "set-path!",
 	block = "block!",
+	paren = "paren!",
 	string = "string!",
 	number = "number!",
 	fn = "fn!",
+
+	file = "file!"
 }
 
 
