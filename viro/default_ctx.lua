@@ -74,6 +74,19 @@ default.read = types.makeFn(function(_, value)
 	return types.makeString(content)
 end, 1)
 
+default.fn = types.makeFn(function(def_ctx, args, body)
+	local arg_count = #args.value
+	return types.makeFn(function(ctx, ...)
+		local fn_ctx = {}
+		setmetatable(fn_ctx, { __index = def_ctx })
+		local params = table.pack(...)
+		for idx = 1, arg_count, 1 do
+			fn_ctx[args.value[idx].name] = params[idx]
+		end
+		return evaluator.eval_block(body, fn_ctx)
+	end, arg_count)
+end, 2)
+
 -- default.compose
 
 --default.reduce = types.makeFn(function(ctx, value)
