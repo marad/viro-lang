@@ -88,8 +88,8 @@ RunTests({
 
   ["[is_head] should return true if block is at it's first element"] = function()
     local block = b { n(1), n(2) }
-    assert.is_true(block:is_head())
-    assert.is_false(block:next():is_head())
+    assert.are.same(block:is_head(), types.trueval)
+    assert.are.same(block:next():is_head(), types.falseval)
   end,
 
   ["[tail] should set index past the last element of the block"] = function()
@@ -103,8 +103,8 @@ RunTests({
 
   ["[is_tail] should return true if block is after it's last element"] = function()
     local block = b { n(1) }
-    assert.is_false(block:is_tail())
-    assert.is_true(block:next():is_tail())
+    assert.are.same(block:is_tail(), types.falseval)
+    assert.are.same(block:next():is_tail(), types.trueval)
   end,
 
   ["[length] should return block selement count"] = function()
