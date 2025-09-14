@@ -227,4 +227,50 @@ default["do"] = types.makeFn(function(ctx, value)
 	end
 end, 1)
 
+default.lua = types.makeFn(function(ctx, value)
+	assert(value.type == types.string, "Expected string argument")
+	local f = load(value.value)
+	f()
+	return types.none
+end, 1)
+
+default["if"] = types.makeFn(function(ctx, cond, body)
+	if cond ~= types.none and cond ~= types.falseval then
+		return evaluator.eval_block(body, ctx)
+	end
+	return types.none
+end, 2)
+
+default["either"] = types.makeFn(function(ctx, cond, then_body, else_body)
+	assert(then_body.type == types.block, "Then branch should be a block")
+	assert(else_body.type == types.block, "Else branch should be a block")
+	if cond ~= types.none and cond ~= types.falseval then
+		return evaluator.eval_block(then_body, ctx)
+	else
+		return evaluator.eval_block(else_body, ctx)
+	end
+end, 3)
+
+
+default["forever"] = types.makeFn(function(ctx, body)
+	assert(body.type == types.block, "Loop body should be a block")
+	function run_loop()
+		while true do 
+			evaluator.eval_block(body, ctx)
+		end
+	end
+	local co = coroutine.create(run_loop)
+	coroutine.resume(co)
+	coroutine.close(co)
+	return types.none
+end, 1)
+
+default["break"] = types.makeFn(function(ctx)
+	local _, is_main = coroutine.running()
+	if is_main then
+		error("Cannot use break outside the loop")
+	end
+	coroutine.yield()
+end, 0)
+
 return default
