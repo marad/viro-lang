@@ -43,6 +43,18 @@ default.probe = types.makeFn(function(ctx, value)
 	return value
 end, 1)
 
+default.load = types.makeFn(function(_, value)
+	return parser.parse(value.value).value[1]
+end, 1)
+
+default["type?"] = types.makeFn(function(_, value)
+	return types.makeString(value.type)
+end, 1)
+
+default.char = types.makeFn(function(_, value)
+	return types.makeString(utf8.char(value.value))
+end, 1)
+
 -- default.compose
 
 --default.reduce = types.makeFn(function(ctx, value)
