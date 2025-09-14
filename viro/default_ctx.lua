@@ -1,6 +1,7 @@
 local env = require("viro.env")
 local types = require("viro.types")
 local eval_block = require("viro.processor")
+local parser = require("viro.parser")
 require("viro.util")
 
 local default = env.new()
@@ -34,6 +35,12 @@ default.print = types.makeFn(function(ctx, value)
 	local str = default.form.fn(ctx, value).value
 	print(str)
 	return types.none
+end, 1)
+
+default.probe = types.makeFn(function(ctx, value)
+	local str = default.mold.fn(ctx, value).value
+	print(str)
+	return value
 end, 1)
 
 -- default.compose
