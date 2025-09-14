@@ -50,7 +50,7 @@ end
 
 local P, V, S, C, Ct, Cp = lpeg.P, lpeg.V, lpeg.S, lpeg.C, lpeg.Ct, lpeg.Cp
 
-local space = lpeg.space ^ 0
+local space = (lpeg.space + S(",")) ^ 0
 local ig = space -- ignore whitespace
 local digit = lpeg.R("09")
 local period = lpeg.S(".")
@@ -60,7 +60,7 @@ local string_content = (1 - quote) ^ 0
 local lbrace = S("{")
 local rbrace = S("}")
 local braced_string_content = (1 - rbrace) ^ 0
-local word_char = lpeg.alpha + S(".-+?%!#$@^&~`*'/=")
+local word_char = lpeg.alpha + S("._-+?%!#$@^&~`*'/=") + digit
 
 local grammar = P({
 	"Viro",
