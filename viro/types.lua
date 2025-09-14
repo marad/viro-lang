@@ -17,6 +17,8 @@ local types = {
 --- Requires the following fields to be available on the object:
 ---  * copy(self, from_index)
 ---  * length(self)
+---  * get_at(self, index)
+---  * set_at(self, index, value)
 local series_proto = {
 	series = true,
 	index = 1,
@@ -71,12 +73,34 @@ function series_proto.is_tail(self)
 	end
 end
 
-function series_proto.skip(self, count)
+---@param offset Number Offset to apply to current position
+---@return Series out returns a copy of the series with position offset by count
+function series_proto.skip(self, offset)
 	local new = self:copy(1)
-	new.index = self.index + count
+	new.index = self.index + offset.value
 	if new.index < 1 then new.index = 1 end
 	if new.index > new:length() then new.index = new:length() + 1 end
 	return new
+end
+
+function series_proto.is_empty(self)
+	if self.index > self:length() then
+		return types.trueval
+	else
+		return types.falseval
+	end
+end
+
+function series_proto.at(self, index)
+	local new = self:copy(1)
+	new.index = index.value
+	if new.index < 1 then new.index = 1 end
+	if new.index > new:length() then new.index = new:length() + 1 end
+	return new
+end
+
+function series_proto.pick(self, index)
+	return self:get_at(index)
 end
 
 
@@ -86,10 +110,6 @@ local block_type = {
 	value = {},
 	length = function(self)
 		return #self.value
-	end,
-	pick = function(self, index)
-		index = index or 1
-		return self.value[self.index + index - 1]
 	end,
 }
 
@@ -108,6 +128,10 @@ function block_type.copy(self, from_index)
 		index = index + 1
 	end
 	return types.makeBlock(content)
+end
+
+function block_type.get_at(self, index)
+	return self.value[index.value]
 end
 
 function block_type.mold(self)
@@ -147,6 +171,10 @@ end
 function string_type.copy(self, from_index) 
 	from_index = from_index or self.index
 	return types.makeString(string.sub(self.value, from_index))
+end
+
+function string_type.get_at(self, index)
+	return types.makeNumber(utf8.codepoint(self.value, index.value))
 end
 
 function string_type.form(self)
@@ -234,6 +262,11 @@ function fn_type.form(self)
 end
 
 --------------------------------------------------------------------------------
+
+function types.make(type_name, value)
+	local node = { type = type_name, value = value}
+	return node
+end
 
 function types.makeWord(word)
 	local value = { type = types.word, name = word }

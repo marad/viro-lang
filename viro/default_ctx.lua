@@ -33,7 +33,7 @@ end, 1)
 default.print = types.makeFn(function(ctx, value)
 	local str = default.form.fn(ctx, value).value
 	print(str)
-	return none
+	return types.none
 end, 1)
 
 -- default.compose
@@ -51,25 +51,115 @@ end, 1)
 
 -- TODO: ?,reduce, compose, next, back
 
-local function create_context_fn(field_name)
-	return types.makeFn(function(_, value)
-		if value[field_name] == nil then
-			error("'" .. field_name .. "' not implemented for type " .. value.type)
-		else
-			return value[field_name](value)
-		end
-	end, 1)
+
+---@param config table Dispatch configuration.
+--- Available config fields:
+--- - method_name: string -  name of the method to dispatch
+--- - wrapper_fn: function - (optional) if present it will be used to transform the result
+--- - arg_count: number - (optional) number of arguments, must be at least 1
+local function dispatch_fn_on_type(config)
+	local arg_count = config.arg_count or 1
+	assert(arg_count >= 1, "Type-dispatched methods need at least one argument.")
+	local method_name = config.method_name
+	assert(method_name ~= nil, "Method name is required")
+
+	if config.wrapper_fn then
+		return types.makeFn(function(_, value, ...)
+			local method = value[method_name]
+			if method ~= nil then
+				return config.wrapper_fn(method(value, ...))
+			else
+				error("'" .. method_name .. "' not supported for " .. value.type .. " type")
+			end
+		end, arg_count)
+	else
+		return types.makeFn(function(_, value, ...)
+			local method = value[method_name]
+			if method ~= nil then 
+				return method(value, ...)
+			else
+				error("'" .. method_name .. "' not supported for " .. value.type .. " type")
+			end
+		end, arg_count)
+	end
 end
 
-default.copy = create_context_fn("copy")
-default.mold = create_context_fn("mold")
-default.form = create_context_fn("form")
-default.next = create_context_fn("next")
-default.back = create_context_fn("back")
-default.head = create_context_fn("head")
-default.tail = create_context_fn("tail")
-default["head?"] = create_context_fn("is_head")
-default["tail?"] = create_context_fn("is_tail")
+-- creation functions
+default.copy = dispatch_fn_on_type { method_name = "copy" }
+-- make
+
+-- Navigation functions
+default.next = dispatch_fn_on_type { method_name = "next" }
+default.back = dispatch_fn_on_type { method_name = "back" }
+default.head = dispatch_fn_on_type { method_name = "head" }
+default.tail = dispatch_fn_on_type { method_name = "tail" }
+default.skip = dispatch_fn_on_type { method_name = "skip", arg_count = 2 }
+default.at = dispatch_fn_on_type { method_name = "at", arg_count = 2}
+
+
+-- Information functions
+default["head?"] = dispatch_fn_on_type { method_name = "is_head" }
+default["tail?"] = dispatch_fn_on_type { method_name = "is_tail" }
+default["length?"] = dispatch_fn_on_type { method_name = "length", wrapper_fn = types.makeNumber }
+default["index?"] = types.makeFn(function(_, value)
+	if value.index ~= nil then
+		return types.makeNumber(value.index)
+	else
+		error("'index?' is not supported for type " .. value.type)
+	end
+end, 1)
+default["offset?"] = types.makeFn(function(_, a, b)
+	if a.index == nil then error(a.type .. "does not support indexing") end
+	if b.index == nil then error(b.type .. "does not support indexing") end
+	return types.makeNumber(b.index - a.index)
+end, 2)
+default["empty?"] = dispatch_fn_on_type { method_name = "is_empty" }
+
+
+-- Extraction functions 
+default.pick = dispatch_fn_on_type { method_name = "pick", arg_count = 2 }
+-- copy/part 
+-- first
+-- second 
+-- third
+-- fourth
+-- fifth
+-- last
+
+
+-- Modification functions 
+-- insert 
+-- append
+-- remove
+-- clear
+-- change
+-- poke
+
+
+-- Search functions
+-- find 
+-- select
+-- replace 
+-- parse
+
+
+-- Ordering functions 
+-- sort 
+-- reverse
+
+
+-- Set functions 
+-- unique 
+-- intersect 
+-- union 
+-- exclude
+-- difference
+
+
+
+-- General functions
+default.mold = dispatch_fn_on_type { method_name = "mold" }
+default.form = dispatch_fn_on_type { method_name = "form" }
 
 default["do"] = types.makeFn(function(ctx, value)
 	if value.type ~= types.block then
