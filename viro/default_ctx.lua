@@ -162,10 +162,13 @@ default.mold = dispatch_fn_on_type { method_name = "mold" }
 default.form = dispatch_fn_on_type { method_name = "form" }
 
 default["do"] = types.makeFn(function(ctx, value)
-	if value.type ~= types.block then
-		return value
-	else
+	if value.type == types.block then
 		return eval_block(value, ctx)
+	elseif value.type == types.string then
+		local block = parser.parse(value.value)
+		return eval_block(block, ctx)
+	else
+		return value
 	end
 end, 1)
 
