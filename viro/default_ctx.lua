@@ -87,20 +87,7 @@ default.fn = types.makeFn(function(def_ctx, args, body)
 	end, arg_count)
 end, 2)
 
--- default.compose
-
---default.reduce = types.makeFn(function(ctx, value)
---	if value.type == types.block then
---		local parts = {}
---		
---		return parts
---	else
---		return value
---	end
---end)
---
-
--- TODO: ?,reduce, compose, next, back
+-- TODO: ?, compose
 
 
 ---@param config table Dispatch configuration.
