@@ -9,7 +9,7 @@ print("Viro REPL v0.0.1-alpha")
 local repl_ctx = env.new(default_ctx)
 
 while true do
-	local ok, err = pcall(function()
+	xpcall(function()
 		io.write("> ")
 		local code = io.read()
 		local ast = parser.parse(code)
@@ -17,8 +17,12 @@ while true do
 		if result ~= default_ctx.none then
 			print(default_ctx.form.fn(repl_ctx, result).value)
 		end
+	end, function (error)
+		if error:match("interrupted") then
+			os.exit(0, true)
+		end
+		print(table.dump(error))
+		print(debug.traceback())
 	end)
-	if not ok then
-		print(err)
-	end
 end
+
