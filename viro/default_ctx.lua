@@ -55,6 +55,19 @@ default.char = types.makeFn(function(_, value)
 	return types.makeString(utf8.char(value.value))
 end, 1)
 
+default["to-file"] = types.makeFn(function(_, value)
+	value.type = types.file
+	return value
+end, 1)
+
+default.read = types.makeFn(function(_, value)
+	assert(value.type == types.file, "Read requires '".. types.file .."' type")
+	local f = assert(io.open(value.value, "rb"))
+	local content = f:read("*all")
+	f:close()
+	return types.makeString(content)
+end, 1)
+
 -- default.compose
 
 --default.reduce = types.makeFn(function(ctx, value)
