@@ -1,12 +1,12 @@
 ---@class Types
 local types = {
-	word = "word",
-	set_word = "set-word",
-	set_path = "set-path",
-	block = "block",
-	string = "string",
-	number = "number",
-	fn = "fn",
+	word = "word!",
+	set_word = "set-word!",
+	set_path = "set-path!",
+	block = "block!",
+	string = "string!",
+	number = "number!",
+	fn = "fn!",
 }
 
 
