@@ -4,58 +4,10 @@ local eval_block = require("viro.processor")
 require("viro.util")
 
 local default = env.new()
-local none = types.makeWord("none")
-local trueval = types.makeWord("true")
-local falseval = types.makeWord("false")
 
-default.none = none
-default["true"] = trueval
-default["false"] = falseval
-
-default.mold = types.makeFn(function(ctx, value)
-	if value.type == types.word then
-		return types.makeString(value.name)
-	elseif value.type == types.set_word then
-		return types.makeString(value.word.name .. ":")
-	elseif value.type == types.block then
-		local parts = {}
-		local index = value.index
-		--for _, val in ipairs(value.value) do
-		while index <= #value.value do
-			local val = value.value[index]
-			index = index + 1
-			table.insert(parts, default.mold.fn(ctx, val).value)
-		end
-		return types.makeString("[" .. table.concat(parts, " ") .. "]")
-	elseif value.type == types.string then
-		-- TODO: choose to use {} or "" based on the contents of the string
-		return types.makeString('"' .. value.value .. '"')
-	elseif value.type == types.number then
-		return types.makeString(tostring(value.value))
-	end
-end, 1)
-
-default.form = types.makeFn(function(ctx, value)
-	if value.type == types.word then
-		return types.makeString(value.name)
-	elseif value.type == types.set_path then
-		return types.makeString(value.word.name .. ":")
-	elseif value.type == types.block then
-		local parts = {}
-		local index = value.index
-		--for _, val in ipairs(value.value) do
-		while index <= #value.value do
-			local val = value.value[index]
-			table.insert(parts, default.form.fn(ctx, val).value)
-			index = index + 1
-		end
-		return types.makeString(table.concat(parts, " "))
-	elseif value.type == types.string then
-		return types.makeString(value.value)
-	elseif value.type == types.number then
-		return types.makeString(tostring(value.value))
-	end
-end, 1)
+default.none = types.none
+default["true"] = types.trueval
+default["false"] = types.falseval
 
 default.rejoin = types.makeFn(function(ctx, value)
 	if value.type ~= types.block then
@@ -99,75 +51,31 @@ end, 1)
 
 -- TODO: ?,reduce, compose, next, back
 
-default.copy = types.makeFn(function(_, block)
-	if block.type ~= types.block then
-		error("next requires a block as a parameter")
-	else
-		return block:copy()
-	end
-end, 1)
-
-default.next = types.makeFn(function(_, block)
-	if block.type ~= types.block then
-		error("next requires a block as a parameter")
-	else
-		return block:next()
-	end
-end, 1)
-
-default.back = types.makeFn(function(_, block)
-	if block.type ~= types.block then
-		error("next requires a block as a parameter")
-	else
-		return block:back()
-	end
-end, 1)
-
-default.head = types.makeFn(function(_, block)
-	if block.type ~= types.block then
-		error("next requires a block as a parameter")
-	else
-		return block:head()
-	end
-end, 1)
-
-default.tail = types.makeFn(function(_, block)
-	if block.type ~= types.block then
-		error("next requires a block as a parameter")
-	else
-		return block:tail()
-	end
-end, 1)
-
-default["tail?"] = types.makeFn(function(_, block)
-	if block.type ~= types.block then
-		error("next requires a block as a parameter")
-	else
-		if block:is_tail() then
-			return trueval
+local function create_context_fn(field_name)
+	return types.makeFn(function(_, value)
+		if value[field_name] == nil then
+			error("'" .. field_name .. "' not implemented for type " .. value.type)
 		else
-			return falseval
+			return value[field_name](value)
 		end
-	end
-end, 1)
+	end, 1)
+end
 
-default["head?"] = types.makeFn(function(_, block)
-	if block.type ~= types.block then
-		error("next requires a block as a parameter")
-	else
-		if block:is_head() then
-			return trueval
-		else
-			return falseval
-		end
-	end
-end, 1)
+default.copy = create_context_fn("copy")
+default.mold = create_context_fn("mold")
+default.form = create_context_fn("form")
+default.next = create_context_fn("next")
+default.back = create_context_fn("back")
+default.head = create_context_fn("head")
+default.tail = create_context_fn("tail")
+default["head?"] = create_context_fn("is_head")
+default["tail?"] = create_context_fn("is_tail")
 
-default["do"] = types.makeFn(function(ctx, block)
-	if block.type ~= types.block then
-		error("next requires a block as a parameter")
+default["do"] = types.makeFn(function(ctx, value)
+	if value.type ~= types.block then
+		return value
 	else
-		return eval_block(block, ctx)
+		return eval_block(value, ctx)
 	end
 end, 1)
 

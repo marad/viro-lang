@@ -15,7 +15,7 @@ while true do
 		local ast = parser.parse(code)
 		local result = process(ast, repl_ctx)
 		if result ~= default_ctx.none then
-			print(default_ctx.mold.fn(repl_ctx, result).value)
+			print(default_ctx.form.fn(repl_ctx, result).value)
 		end
 	end)
 	if not ok then
