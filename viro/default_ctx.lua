@@ -10,6 +10,20 @@ default.none = types.none
 default["true"] = types.trueval
 default["false"] = types.falseval
 
+default.make = types.makeFn(function(ctx, proto, definition)
+	if proto.name == types.object then
+		local object = env.new(ctx)
+		evaluator.eval_block(definition, object)
+		return types.makeObject(object)
+	else
+		error("Making " .. proto .. " is not yet supported!")
+	end
+end, 2)
+
+default["get-context"] = types.makeFn(function(ctx)
+	return types.makeObject(ctx)
+end, 0)
+
 default.rejoin = types.makeFn(function(ctx, value)
 	if value.type ~= types.block then
 		error("rejoin requires a block as a parameter")
@@ -49,12 +63,25 @@ default.probe = types.makeFn(function(ctx, value)
 	return value
 end, 1)
 
-default.load = types.makeFn(function(_, value)
-	return parser.parse(value.value)
+default.load = types.makeFn(function(ctx, value)
+	if value.type == types.string then
+		return parser.parse(value.value)
+	elseif value.type == types.file then
+		return parser.parse(default.read.fn(ctx, value).value)
+	else
+		error("Load requires string! or file! argument")
+	end
 end, 1)
 
 default["type?"] = types.makeFn(function(_, value)
 	return types.makeString(value.type)
+end, 1)
+
+default["kind?"] = types.makeFn(function(_, value)
+	return types.makeString(value.kind)
+end, 1)
+
+default["to"] = types.makeFn(function(_, type, value)
 end, 1)
 
 default.char = types.makeFn(function(_, value)
@@ -73,6 +100,16 @@ default.read = types.makeFn(function(_, value)
 	f:close()
 	return types.makeString(content)
 end, 1)
+
+default.save = types.makeFn(function(ctx, file, value)
+	assert(file.type == types.file, "Save requires '".. types.file .."' type")
+	local f = assert(io.open(file.value, "wb"))
+	local s = default.mold.fn(ctx, value).value
+	s = s:gsub("^[[]", ""):gsub("]$", "")
+	f:write(s)
+	f:close()
+	return types.none
+end, 2)
 
 default.fn = types.makeFn(function(def_ctx, args, body)
 	local arg_count = #args.value
@@ -184,6 +221,7 @@ default.pick = dispatch_fn_on_type { method_name = "pick", arg_count = 2 }
 -- Ordering functions 
 -- sort 
 -- reverse
+default.sort = dispatch_fn_on_type { method_name = "sort" }
 
 
 -- Set functions 

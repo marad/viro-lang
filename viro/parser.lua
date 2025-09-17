@@ -21,6 +21,10 @@ function parser.read_word(from, word, to)
 		local file = types.makeString(string.sub(word, 2))
 		file.type = types.file
 		return withPos(file, from, to)
+	elseif string.sub(word, -1) == "!" then
+		local type = types.makeWord(word)
+		type.type = "datatype!"
+		return withPos(type)
 	else
 		return withPos(types.makeWord(word), from, to)
 	end
