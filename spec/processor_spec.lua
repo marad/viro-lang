@@ -74,4 +74,25 @@ RunTests({
 		local result = process(ast, ctx)
 		assert.are.same(result, parser.read_number(3))
 	end,
+
+	["should handle infix functions"] = function()
+		local ast = parser.parse [[
+			2 + 3
+		]]
+
+		local ctx = env.new()
+		ctx["+"] = types.makeFunc {
+			infix = true,
+			arg_spec = {
+				{ name = "a", types = { types.number } },
+				{ name = "b", types = { types.number } },
+			},
+			fn = function(_, a, b)
+				return types.makeNumber(a.value + b.value)
+			end
+		}
+
+		local result = process(ast, ctx)
+		assert.are.same(types.makeNumber(5), result)
+	end
 })

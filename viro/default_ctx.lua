@@ -10,21 +10,50 @@ default.none = types.none
 default["true"] = types.trueval
 default["false"] = types.falseval
 
-default["+"] = types.makeFn(function(_, a, b)
-	return types.makeNumber(a.value + b.value)
-end, 2)
+default["+"] = types.makeFunc {
+	infix = true,
+	arg_spec = {
+		{ name = "a", types = { types.number } },
+		{ name = "b", types = { types.number } },
+	},
+	fn = function(_, a, b)
+		return types.makeNumber(a.value + b.value)
+	end
+}
 
-default["-"] = types.makeFn(function(_, a, b)
-	return types.makeNumber(a.value - b.value)
-end, 2)
+default["-"] = types.makeFunc {
+	infix = true,
+	arg_spec = {
+		{ name = "a", types = { types.number } },
+		{ name = "b", types = { types.number } },
+	},
+	fn = function(_, a, b)
+		return types.makeNumber(a.value - b.value)
+	end
+}
 
-default["*"] = types.makeFn(function(_, a, b)
-	return types.makeNumber(a.value * b.value)
-end, 2)
+default["*"] = types.makeFunc {
+	infix = true,
+	arg_spec = {
+		{ name = "a", types = { types.number } },
+		{ name = "b", types = { types.number } },
+	},
+	fn = function(_, a, b)
+		return types.makeNumber(a.value * b.value)
+	end
+}
 
-default["/"] = types.makeFn(function(_, a, b)
-	return types.makeNumber(a.value + b.value)
-end, 2)
+default["/"] = types.makeFunc {
+	infix = true,
+	arg_spec = {
+		{ name = "a", types = { types.number } },
+		{ name = "b", types = { types.number } },
+	},
+	fn = function(_, a, b)
+		return types.makeNumber(a.value / b.value)
+	end
+}
+
 
 default.make = types.makeFn(function(ctx, proto, definition)
 	if proto.name == types.object then
@@ -163,7 +192,7 @@ local function dispatch_fn_on_type(config)
 	else
 		return types.makeFn(function(_, value, ...)
 			local method = value[method_name]
-			if method ~= nil then 
+			if method ~= nil then
 				return method(value, ...)
 			else
 				error("'" .. method_name .. "' not supported for " .. value.type .. " type")
@@ -204,19 +233,19 @@ end, 2)
 default["empty?"] = dispatch_fn_on_type { method_name = "is_empty" }
 
 
--- Extraction functions 
+-- Extraction functions
 default.pick = dispatch_fn_on_type { method_name = "pick", arg_count = 2 }
--- copy/part 
+-- copy/part
 -- first
--- second 
+-- second
 -- third
 -- fourth
 -- fifth
 -- last
 
 
--- Modification functions 
--- insert 
+-- Modification functions
+-- insert
 -- append
 -- remove
 -- clear
@@ -225,22 +254,22 @@ default.pick = dispatch_fn_on_type { method_name = "pick", arg_count = 2 }
 
 
 -- Search functions
--- find 
+-- find
 -- select
--- replace 
+-- replace
 -- parse
 
 
--- Ordering functions 
--- sort 
+-- Ordering functions
+-- sort
 -- reverse
 default.sort = dispatch_fn_on_type { method_name = "sort" }
 
 
--- Set functions 
--- unique 
--- intersect 
--- union 
+-- Set functions
+-- unique
+-- intersect
+-- union
 -- exclude
 -- difference
 
@@ -294,7 +323,7 @@ end, 3)
 default["forever"] = types.makeFn(function(ctx, body)
 	assert(body.type == types.block, "Loop body should be a block")
 	local function run_loop()
-		while true do 
+		while true do
 			evaluator.eval_block(body, ctx)
 		end
 	end

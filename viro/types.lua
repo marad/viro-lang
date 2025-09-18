@@ -99,10 +99,10 @@ end
 
 ---@return Bool out if the series is pointing at the first element
 function series_proto.is_head(self)
-	if self.index == 1 then 
-		return types.trueval 
+	if self.index == 1 then
+		return types.trueval
 	else
-		return types.falseval 
+		return types.falseval
 	end
 end
 
@@ -231,7 +231,7 @@ function string_type.length(self)
 	return #self.value
 end
 
-function string_type.copy(self, from_index) 
+function string_type.copy(self, from_index)
 	from_index = from_index or self.index
 	return types.makeString(string.sub(self.value, from_index))
 end
@@ -276,7 +276,7 @@ function word_type.form(self)
 end
 
 --------------------------------------------------------------------------------
----@class SetWord 
+---@class SetWord
 ---@field word Word
 local set_word_type = {
 	type = types.set_word,
@@ -331,7 +331,7 @@ local number_type = {
 setmetatable(number_type, { __index = base_type })
 
 function number_type.copy(self)
-return types.makeNumber(self.value)	
+	return types.makeNumber(self.value)
 end
 
 ---@param self Number
@@ -346,6 +346,10 @@ end
 
 --------------------------------------------------------------------------------
 ---@class Function
+---@field arg_spec ArgSpec[]?
+---@field arg_count integer
+---@field fn function
+---@field infix boolean?
 local fn_type = {
 	type = types.fn,
 	kind = types.fn,
@@ -464,8 +468,41 @@ function types.makeNumber(value)
 	return node
 end
 
-function types.makeFn(fn, arg_count, infix)
-	local node = { fn = fn, arg_count = arg_count, infix = infix }
+--- Creates a function
+
+---@class ArgSpec
+---@field eval boolean? Should the argument be evaluated before passing
+---@field name string Argument name
+---@field types table Array of Type's accepted for this parameter
+
+---@class FunctionConfig
+---@field fn function
+---@field info string?
+---@field infix boolean?
+---@field arg_spec ArgSpec[]
+local fn_config = {
+	fn = function() end,
+	info = "",
+	infix = false,
+	arg_spec = {
+		{ eval = false, name = "x", types = { types.block, types.string } }
+	}
+}
+
+function types.makeFn(fn, arg_count)
+	local node = { fn = fn, arg_count = arg_count }
+	setmetatable(node, { __index = fn_type })
+	return node
+end
+
+---@param config FunctionConfig
+---@return Function
+function types.makeFunc(config)
+	if config.infix then
+		assert(#config.arg_spec == 2, "Infix functions may only have 2 arguments!")
+		assert(config.arg_spec[1].eval ~= false, "Infix functions cannot receive first argument unevaluated")
+	end
+	local node = { fn = config.fn, arg_count = #config.arg_spec, arg_spec = config.arg_spec, infix = config.infix }
 	setmetatable(node, { __index = fn_type })
 	return node
 end

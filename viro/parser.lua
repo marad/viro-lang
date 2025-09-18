@@ -71,7 +71,8 @@ local word_char = lpeg.alpha + S("._-+?%!#$@^&~`*'/=") + digit
 local grammar = P({
 	"Viro",
 	Viro = ig * (Cp() * Ct(V("Expr") ^ 1) * Cp()) / parser.read_block,
-	Expr = V("Comment") + V("Paren") + V("Block") + V("Set_Word") + V("Braced_String") + V("String") + V("Number") + V("Word"),
+	Expr = V("Comment") + V("Paren") + V("Block") + V("Set_Word") + V("Braced_String") + V("String") + V("Number") +
+	V("Word"),
 	Word = (Cp() * C(word_char ^ 1) * Cp() * ig) / parser.read_word,
 	Number = (Cp() * C(digit ^ 1 * (period * digit ^ 1) ^ 0) * Cp() * ig) / parser.read_number,
 	String = (Cp() * quote * C(string_content) * quote * Cp() * ig) / parser.read_string,
