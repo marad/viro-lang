@@ -118,6 +118,14 @@ function series_proto.pick(self, index)
 	return self:get_at(index)
 end
 
+function series_proto.iterator(self)
+	local index = 0
+	return function()
+		index = index + 1
+		return self:at(index)
+	end
+end
+
 
 --------------------------------------------------------------------------------
 ---@class Block
