@@ -410,8 +410,8 @@ function types.makeNumber(value)
 	return node
 end
 
-function types.makeFn(fn, arg_count)
-	local node = { fn = fn, arg_count = arg_count }
+function types.makeFn(fn, arg_count, infix)
+	local node = { fn = fn, arg_count = arg_count, infix = infix }
 	setmetatable(node, { __index = fn_type })
 	return node
 end
