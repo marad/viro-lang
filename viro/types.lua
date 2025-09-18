@@ -1,5 +1,6 @@
 ---@class Types
 local types = {
+	datatype = "datatype!",
 	word = "word!",
 	set_word = "set-word!",
 	set_path = "set-path!",
