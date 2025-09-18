@@ -1,0 +1,15 @@
+a: [1 2 3 4 5]
+
+f: fn [x] [x "hello"]
+
+print "Hello"
+
+o: make object! [
+    x: 1
+    y: 2
+]
+
+
+foreach c a [
+    print c
+]
