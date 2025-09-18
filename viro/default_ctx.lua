@@ -10,6 +10,22 @@ default.none = types.none
 default["true"] = types.trueval
 default["false"] = types.falseval
 
+default["+"] = types.makeFn(function(ctx, a, b)
+	return types.makeNumber(a.value + b.value)
+end, 2)
+
+default["-"] = types.makeFn(function(ctx, a, b)
+	return types.makeNumber(a.value - b.value)
+end, 2)
+
+default["*"] = types.makeFn(function(ctx, a, b)
+	return types.makeNumber(a.value * b.value)
+end, 2)
+
+default["/"] = types.makeFn(function(ctx, a, b)
+	return types.makeNumber(a.value + b.value)
+end, 2)
+
 default.make = types.makeFn(function(ctx, proto, definition)
 	if proto.name == types.object then
 		local object = env.new(ctx)
