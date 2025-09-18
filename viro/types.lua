@@ -10,6 +10,7 @@ local types = {
 	number = "number!",
 	object = "object!",
 	fn = "fn!",
+	bool = "bool!",
 
 	series = "series!",
 	file = "file!",
@@ -22,6 +23,20 @@ local base_type = {
 }
 
 
+--------------------------------------------------------------------------------
+---@class Bool
+--- Implements the boolean value methods
+local bool_type = { value = false, type = types.bool, kind = types.bool }
+
+setmetatable(bool_type, { __index = base_type })
+
+function bool_type.mold(self)
+	return types.makeString(tostring(self.value))
+end
+
+function bool_type.form(self)
+	return types.makeString(tostring(self.value))
+end
 
 --------------------------------------------------------------------------------
 ---@class Series
@@ -378,7 +393,14 @@ end
 --------------------------------------------------------------------------------
 
 function types.make(type_name, value)
-	local node = { type = type_name, value = value}
+	local node = { type = type_name, value = value }
+	return node
+end
+
+function types.makeBool(value)
+	assert(type(value) == "boolean", "Boolean value expected. Instead got: " .. tostring(value))
+	local node = { value = value }
+	setmetatable(node, { __index = bool_type })
 	return node
 end
 
@@ -431,7 +453,7 @@ function types.makeObject(table)
 end
 
 types.none = types.makeWord("none")
-types.trueval = types.makeWord("true")
-types.falseval = types.makeWord("false")
+types.trueval = types.makeBool(true)
+types.falseval = types.makeBool(false)
 
 return types
