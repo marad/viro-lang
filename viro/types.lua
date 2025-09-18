@@ -1,4 +1,3 @@
----@class Types
 local types = {
 	datatype = "datatype!",
 	word = "word!",
@@ -16,6 +15,8 @@ local types = {
 	file = "file!",
 }
 
+---@alias Type string
+
 ---@class Base
 local base_type = {
 	type = "unset!",
@@ -25,6 +26,9 @@ local base_type = {
 
 --------------------------------------------------------------------------------
 ---@class Bool
+---@field value boolean
+---@field type Type
+---@field kind Type
 --- Implements the boolean value methods
 local bool_type = { value = false, type = types.bool, kind = types.bool }
 
@@ -54,6 +58,21 @@ local series_proto = {
 
 setmetatable(series_proto, { __index = base_type })
 
+function series_proto.copy(self, _)
+	return self
+end
+
+function series_proto.length(_)
+	return 0
+end
+
+function series_proto.get_at(_, _)
+	return types.none
+end
+
+function series_proto.set_at(_, _, _)
+	return types.none
+end
 
 ---@return Series out the copy of the series, but pointing to the next element
 function series_proto.next(self)
@@ -78,7 +97,7 @@ function series_proto.head(self)
 	return new
 end
 
----@return boolean out if the series is pointing at the first element
+---@return Bool out if the series is pointing at the first element
 function series_proto.is_head(self)
 	if self.index == 1 then 
 		return types.trueval 
@@ -94,7 +113,7 @@ function series_proto.tail(self)
 	return new
 end
 
----@return boolean out if the series is pointing after the last element
+---@return Bool out if the series is pointing after the last element
 function series_proto.is_tail(self)
 	if self.index == self:length() + 1 then
 		return types.trueval
@@ -141,10 +160,10 @@ function series_proto.iterator(self)
 	end
 end
 
-
 --------------------------------------------------------------------------------
 ---@class Block
 local block_type = {
+	index = 1,
 	type = types.block,
 	kind = types.block,
 	value = {},
@@ -198,7 +217,9 @@ end
 
 --------------------------------------------------------------------------------
 ---@class String
+---@field value string Contents of the string node
 local string_type = {
+	index = 1,
 	type = types.string,
 	kind = types.string,
 	value = ""
@@ -256,6 +277,7 @@ end
 
 --------------------------------------------------------------------------------
 ---@class SetWord 
+---@field word Word
 local set_word_type = {
 	type = types.set_word,
 	kind = types.set_word,
@@ -277,6 +299,8 @@ end
 
 --------------------------------------------------------------------------------
 ---@class SetPath
+---@field word Word
+---@field path Word
 local set_path_type = {
 	type = types.set_path,
 	kind = types.set_path,
@@ -335,11 +359,11 @@ function fn_type.copy(self)
 	return types.makeFn(self.fn, self.arg_count)
 end
 
-function fn_type.mold(self)
+function fn_type.mold(_)
 	return types.makeString("\"?function?\"")
 end
 
-function fn_type.form(self)
+function fn_type.form(_)
 	return types.makeString("?function?")
 end
 

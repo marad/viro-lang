@@ -10,19 +10,19 @@ default.none = types.none
 default["true"] = types.trueval
 default["false"] = types.falseval
 
-default["+"] = types.makeFn(function(ctx, a, b)
+default["+"] = types.makeFn(function(_, a, b)
 	return types.makeNumber(a.value + b.value)
 end, 2)
 
-default["-"] = types.makeFn(function(ctx, a, b)
+default["-"] = types.makeFn(function(_, a, b)
 	return types.makeNumber(a.value - b.value)
 end, 2)
 
-default["*"] = types.makeFn(function(ctx, a, b)
+default["*"] = types.makeFn(function(_, a, b)
 	return types.makeNumber(a.value * b.value)
 end, 2)
 
-default["/"] = types.makeFn(function(ctx, a, b)
+default["/"] = types.makeFn(function(_, a, b)
 	return types.makeNumber(a.value + b.value)
 end, 2)
 
@@ -97,9 +97,6 @@ default["kind?"] = types.makeFn(function(_, value)
 	return types.makeString(value.kind)
 end, 1)
 
-default["to"] = types.makeFn(function(_, type, value)
-end, 1)
-
 default.char = types.makeFn(function(_, value)
 	return types.makeString(utf8.char(value.value))
 end, 1)
@@ -110,7 +107,7 @@ default["to-file"] = types.makeFn(function(_, value)
 end, 1)
 
 default.read = types.makeFn(function(_, value)
-	assert(value.type == types.file, "Read requires '".. types.file .."' type")
+	assert(value.type == types.file, "Read requires '" .. types.file .. "' type")
 	local f = assert(io.open(value.value, "rb"))
 	local content = f:read("*all")
 	f:close()
@@ -118,7 +115,7 @@ default.read = types.makeFn(function(_, value)
 end, 1)
 
 default.save = types.makeFn(function(ctx, file, value)
-	assert(file.type == types.file, "Save requires '".. types.file .."' type")
+	assert(file.type == types.file, "Save requires '" .. types.file .. "' type")
 	local f = assert(io.open(file.value, "wb"))
 	local s = default.mold.fn(ctx, value).value
 	s = s:gsub("^[[]", ""):gsub("]$", "")
@@ -129,7 +126,7 @@ end, 2)
 
 default.fn = types.makeFn(function(def_ctx, args, body)
 	local arg_count = #args.value
-	return types.makeFn(function(ctx, ...)
+	return types.makeFn(function(_, ...)
 		local fn_ctx = {}
 		setmetatable(fn_ctx, { __index = def_ctx })
 		local params = table.pack(...)
@@ -185,7 +182,7 @@ default.back = dispatch_fn_on_type { method_name = "back" }
 default.head = dispatch_fn_on_type { method_name = "head" }
 default.tail = dispatch_fn_on_type { method_name = "tail" }
 default.skip = dispatch_fn_on_type { method_name = "skip", arg_count = 2 }
-default.at = dispatch_fn_on_type { method_name = "at", arg_count = 2}
+default.at = dispatch_fn_on_type { method_name = "at", arg_count = 2 }
 
 
 -- Information functions
@@ -268,10 +265,11 @@ default["do"] = types.makeFn(function(ctx, value)
 	end
 end, 1)
 
-default.lua = types.makeFn(function(ctx, value)
+---@param value String
+default.lua = types.makeFn(function(_, value)
 	assert(value.type == types.string, "Expected string argument")
 	local f = load(value.value)
-	f()
+	if f ~= nil then f() else error("Invalid lua code: " .. value.value) end
 	return types.none
 end, 1)
 
@@ -295,18 +293,47 @@ end, 3)
 
 default["forever"] = types.makeFn(function(ctx, body)
 	assert(body.type == types.block, "Loop body should be a block")
-	function run_loop()
+	local function run_loop()
 		while true do 
 			evaluator.eval_block(body, ctx)
 		end
 	end
+
 	local co = coroutine.create(run_loop)
 	coroutine.resume(co)
 	coroutine.close(co)
 	return types.none
 end, 1)
 
-default["break"] = types.makeFn(function(ctx)
+-- default["foreach"] = types.makeFn(function (ctx, var_name, series, body)
+
+-- 	return types.none
+-- end, 3)
+
+default["foreach"] = types.makeFunc {
+	info = "Iterates over the series and executes the body.",
+	arg_spec = {
+		{ name = "word",   types = { types.word },  eval = false },
+		{ name = "series", types = { types.series } },
+		{ name = "body",   types = { types.block } }
+	},
+	fn = function(parent_ctx, word, series, body)
+		local function run_loop()
+			for value in series:iterator() do
+				local ctx = env.new(parent_ctx)
+				ctx[word.name] = value
+				evaluator.eval_block(ctx, body)
+			end
+		end
+
+		local co = coroutine.create(run_loop)
+		coroutine.resume(co)
+		coroutine.close(co)
+		return types.none
+	end
+}
+
+default["break"] = types.makeFn(function(_)
 	local _, is_main = coroutine.running()
 	if is_main then
 		error("Cannot use break outside the loop")
