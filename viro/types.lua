@@ -373,7 +373,7 @@ function object_type.get_word(self, word)
 end
 
 function object_type.mold(self)
-	local result = {"make " .. self.type .. " ["}
+	local result = { "make " .. self.type .. " [" }
 	for key, value in pairs(self.value) do
 		table.insert(result, "    " .. key .. ": " .. value:mold().value)
 	end
@@ -382,7 +382,7 @@ function object_type.mold(self)
 end
 
 function object_type.form(self)
-	local result = {"make " .. self.type .. " ["}
+	local result = { "make " .. self.type .. " [" }
 	for key, value in pairs(self.value) do
 		table.insert(result, "    " .. key .. ": " .. value:form().value)
 	end
