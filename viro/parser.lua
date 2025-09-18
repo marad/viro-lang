@@ -17,11 +17,13 @@ local function withPos(node, from, to)
 end
 
 function parser.read_word(from, word, to)
-	if string.sub(word, 1, 1) == "%" then
+	local first = string.sub(word, 1, 1)
+	local last = string.sub(word, -1)
+	if first == "%" then
 		local file = types.makeString(string.sub(word, 2))
 		file.type = types.file
 		return withPos(file, from, to)
-	elseif string.sub(word, -1) == "!" then
+	elseif last == "!" then
 		local type = types.makeWord(word)
 		type.type = types.datatype
 		return withPos(type)
