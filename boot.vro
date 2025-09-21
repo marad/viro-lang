@@ -10,6 +10,6 @@ o: make object! [
 ]
 
 
-foreach c a [
-    print c
-]
+;foreach c a [
+;    print c
+;]

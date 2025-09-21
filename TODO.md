@@ -1,6 +1,8 @@
 TODO:
-- function argument specifications - if the argument starts with `'` then it will not be evaluated before use it might also be used for type restrictions
-- reading additional optional parameters/refinements
+- [x] infix functions (like `+`)
+- [ ] function argument specifications - if the argument starts with `'` then it will not be evaluated before use it might also be used for type restrictions
+- [ ] reading additional optional parameters/refinements
+
 
 
 
@@ -10,11 +12,12 @@ List of native functions to implement for each data type:
 - also a b - returns the first value but also evaluates the second
 
 
+https://www.rebol.com/r3/docs/guide/code-syntax.html
 https://www.rebol.com/r3/docs/functions.html
 
 
 The https://www.rebol.com/r3/docs/concepts.html page contains number of "Functions" subpages 
-that outline the core functions defined in the language.
+that outline the core functions defined ingthe language.
 
 
 
