@@ -1,12 +1,6 @@
 local lpeg = require("lpeg")
 lpeg.locale(lpeg)
 
--- TODO: (https://www.rebol.com/r3/docs/guide/code-syntax.html)
--- Add parens for groupping
--- Words should allow symbols: ?, -, !, #, $, @, %, ^, &, +, `, ~, |, =, *
--- Set_Path (x/1: 10)
--- "/" powinno kończyć słowo - bo zaczyna ścieżkę
--- Bloki powinny mieć wskaźnik instrukcji (dla funkcji back, next, etc)
 
 local types = require("viro.types")
 local parser = {}
@@ -43,7 +37,7 @@ end
 function parser.read_paren(from, content, to)
 	local block = types.makeBlock(content)
 	block.type = types.paren
-	return block
+	return withPos(block, from, to)
 end
 
 function parser.read_string(from, content, to)
@@ -72,7 +66,7 @@ local grammar = P({
 	"Viro",
 	Viro = ig * (Cp() * Ct(V("Expr") ^ 1) * Cp()) / parser.read_block,
 	Expr = V("Comment") + V("Paren") + V("Block") + V("Set_Word") + V("Braced_String") + V("String") + V("Number") +
-	V("Word"),
+			V("Word"),
 	Word = (Cp() * C(word_char ^ 1) * Cp() * ig) / parser.read_word,
 	Number = (Cp() * C(digit ^ 1 * (period * digit ^ 1) ^ 0) * Cp() * ig) / parser.read_number,
 	String = (Cp() * quote * C(string_content) * quote * Cp() * ig) / parser.read_string,
