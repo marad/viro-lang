@@ -1,14 +1,5 @@
 local types = require("viro.types")
 
--- TODO:
--- - Obsługa operatorów infix - działania matematyczne
--- - Podstawowe funkcje
---   - print
--- - Definicja funkcji przez 'fn'
--- - Refinementy funkcji
---   - Obsługa przy definiowaniu
---   - Obsługa przy wywołaniu
-
 local evaluator = {}
 
 ---@param fn_node Function
