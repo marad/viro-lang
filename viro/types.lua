@@ -18,14 +18,15 @@ local types = {
 ---@alias Type string
 
 ---@class Base
+---@field type Type
+---@field kind Type
 local base_type = {
 	type = "unset!",
-	kind = "unset!"
+	kind = "unset!",
 }
 
-
 --------------------------------------------------------------------------------
----@class Bool
+---@class Bool: Base
 ---@field value boolean
 ---@field type Type
 ---@field kind Type
@@ -43,7 +44,7 @@ function bool_type.form(self)
 end
 
 --------------------------------------------------------------------------------
----@class Series
+---@class Series: Base
 --- Implements basic series methods.
 --- Requires the following fields to be available on the object:
 ---  * copy(self, from_index)
@@ -78,7 +79,9 @@ end
 function series_proto.next(self)
 	local new = self:copy(1)
 	new.index = self.index + 1
-	if new.index > new:length() then new.index = new:length() + 1 end
+	if new.index > new:length() then
+		new.index = new:length() + 1
+	end
 	return new
 end
 
@@ -86,7 +89,9 @@ end
 function series_proto.back(self)
 	local new = self:copy(1)
 	new.index = self.index - 1
-	if new.index < 1 then new.index = 1 end
+	if new.index < 1 then
+		new.index = 1
+	end
 	return new
 end
 
@@ -127,8 +132,12 @@ end
 function series_proto.skip(self, offset)
 	local new = self:copy(1)
 	new.index = self.index + offset.value
-	if new.index < 1 then new.index = 1 end
-	if new.index > new:length() then new.index = new:length() + 1 end
+	if new.index < 1 then
+		new.index = 1
+	end
+	if new.index > new:length() then
+		new.index = new:length() + 1
+	end
 	return new
 end
 
@@ -143,8 +152,12 @@ end
 function series_proto.at(self, index)
 	local new = self:copy(1)
 	new.index = index.value
-	if new.index < 1 then new.index = 1 end
-	if new.index > new:length() then new.index = new:length() + 1 end
+	if new.index < 1 then
+		new.index = 1
+	end
+	if new.index > new:length() then
+		new.index = new:length() + 1
+	end
 	return new
 end
 
@@ -161,7 +174,9 @@ function series_proto.iterator(self)
 end
 
 --------------------------------------------------------------------------------
----@class Block
+---@class Block: Series
+---@field index integer
+---@field value Base[]
 local block_type = {
 	index = 1,
 	type = types.block,
@@ -216,13 +231,13 @@ function block_type.form(self)
 end
 
 --------------------------------------------------------------------------------
----@class String
+---@class String: Series
 ---@field value string Contents of the string node
 local string_type = {
 	index = 1,
 	type = types.string,
 	kind = types.string,
-	value = ""
+	value = "",
 }
 
 setmetatable(string_type, { __index = series_proto })
@@ -245,20 +260,20 @@ function string_type.form(self)
 end
 
 function string_type.mold(self)
-	local contains_quotes = string.match(self.value, "\"")
+	local contains_quotes = string.match(self.value, '"')
 	if contains_quotes then
 		return types.makeString("{" .. string.sub(self.value, self.index) .. "}")
 	else
-		return types.makeString("\"" .. string.sub(self.value, self.index) .. "\"")
+		return types.makeString('"' .. string.sub(self.value, self.index) .. '"')
 	end
 end
 
 --------------------------------------------------------------------------------
----@class Word
+---@class Word: Base
 local word_type = {
 	type = types.word,
 	kind = types.word,
-	name = ""
+	name = "",
 }
 
 setmetatable(word_type, { __index = base_type })
@@ -276,7 +291,7 @@ function word_type.form(self)
 end
 
 --------------------------------------------------------------------------------
----@class SetWord
+---@class SetWord: Base
 ---@field word Word
 local set_word_type = {
 	type = types.set_word,
@@ -298,7 +313,7 @@ function set_word_type.form(self)
 end
 
 --------------------------------------------------------------------------------
----@class SetPath
+---@class SetPath: Base
 ---@field word Word
 ---@field path Word
 local set_path_type = {
@@ -321,11 +336,11 @@ function set_path_type.form(self)
 end
 
 --------------------------------------------------------------------------------
----@class Number
+---@class Number: Base
 local number_type = {
 	type = types.number,
 	kind = types.number,
-	value = 0
+	value = 0,
 }
 
 setmetatable(number_type, { __index = base_type })
@@ -345,7 +360,7 @@ function number_type.form(self)
 end
 
 --------------------------------------------------------------------------------
----@class Function
+---@class Function: Base
 ---@field arg_spec ArgSpec[]?
 ---@field arg_count integer
 ---@field fn function
@@ -353,7 +368,9 @@ end
 local fn_type = {
 	type = types.fn,
 	kind = types.fn,
-	fn = function() return types.none end,
+	fn = function()
+		return types.none
+	end,
 	arg_count = 0,
 }
 
@@ -364,7 +381,7 @@ function fn_type.copy(self)
 end
 
 function fn_type.mold(_)
-	return types.makeString("\"?function?\"")
+	return types.makeString('"?function?"')
 end
 
 function fn_type.form(_)
@@ -372,7 +389,7 @@ function fn_type.form(_)
 end
 
 --------------------------------------------------------------------------------
----@class Object
+---@class Object: Base
 local object_type = {
 	type = types.object,
 	kind = types.object,
@@ -485,8 +502,8 @@ local fn_config = {
 	info = "",
 	infix = false,
 	arg_spec = {
-		{ eval = false, name = "x", types = { types.block, types.string } }
-	}
+		{ eval = false, name = "x", types = { types.block, types.string } },
+	},
 }
 
 function types.makeFn(fn, arg_count)
