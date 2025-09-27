@@ -100,3 +100,7 @@ RunTests({
 - Limited control flow (if/either/forever)
 - File I/O through `read`/`save` functions
 - Error handling via Lua's `xpcall`
+
+## Terminal Commands
+The development environment uses the nix flake so before running the first terminal command 
+you should run the `nix develop` first to setup the environment.
