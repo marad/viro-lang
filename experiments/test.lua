@@ -26,18 +26,19 @@ require("viro.util")
 ---@field v number
 
 ---@class FnArg
----@field name string?
----@field eval boolean?
+---@field name string? Argument name
+---@field eval boolean? Should the argument be evaluated before passing?
 
 ---@class Refinement
----@field name string
+---@field name string Refinement variable name
+---@field value boolean Does the refinement expect a value?
 
 ---@class Fn : Type
 ---@field body Block?
 ---@field arg_def Block?
----@field fn function
----@field args FnArg[]
----@field refinements Refinement[]?
+---@field fn function Function to be executed
+---@field args FnArg[] Arguments to be collected and passed
+---@field refinements Refinement[]? Refinements to be collected
 ---@field infix boolean
 ---
 
@@ -135,6 +136,7 @@ local function make_fn(config, prototype)
 	end
 	prototype = prototype or Fn
 	local fn = make_with_prototype(prototype)
+	---@cast fn Fn
 	fn.body = config.body
 	fn.arg_def = config.arg_def
 	fn.args = config.args
@@ -146,21 +148,24 @@ end
 
 ---@class MakeNativeFnConfig
 ---@field fn function
----@field args ArgSpec[]
----@field infix boolean
+---@field args FnArg[]
+---@field infix boolean?
+---@field refinements Refinement[]?
 
 ---Creates a native function
 ---@param config MakeNativeFnConfig
 ---@return Fn
 local function make_native_fn(config)
+	---@diagnostic disable-next-line
 	local value = make_fn(config, NativeFn)
 	return value
 end
 
 ---@class MakeActionConfig
----@field args ArgSpec[]
+---@field args FnArg[]
 ---@field name string
----@field infix boolean
+---@field infix boolean?
+---@field refinements Refinement[]?
 
 ---@param action_config MakeActionConfig
 ---@return Fn
@@ -177,6 +182,7 @@ local function make_action(action_config)
 			end
 		end,
 	}
+	---@diagnostic disable-next-line
 	return make_fn(fn_config, Action)
 end
 
@@ -276,10 +282,44 @@ end
 --- Evaluator
 --------------------------------------------------------------------------------
 
+local eval = {}
+
+---Handles calling a function
+---@param scope Object
+---@param block Block
+---@param pos integer
+---@param fn Fn
+---@param last_value Value
+---@return integer, Value
+function eval.handle_fn_call(scope, block, pos, name, fn, last_value)
+	local args = {}
+	pos = pos + 1
+	local i = 1
+	if fn.infix then
+		-- Add last value as first argument
+		assert(last_value ~= nil, "Missing left argument for " .. name .. " function")
+		table.insert(args, last_value)
+		i = i + 1
+	end
+	while i <= #fn.args do
+		local arg_spec = fn.args[i]
+		i = i + 1
+		local new_pos, arg_value
+		if arg_spec.eval or arg_spec.eval == nil then
+			new_pos, arg_value = eval.eval_expr(scope, block, pos)
+		else
+			new_pos, arg_value = pos + 1, block.v[pos]
+		end
+		table.insert(args, arg_value)
+		pos = new_pos
+	end
+	return pos, fn.fn(scope, table.unpack(args))
+end
+
 ---@param block Block
 ---@param from_pos integer
 ---@return integer, Value
-local function eval_expr(scope, block, from_pos, last_value)
+function eval.eval_expr(scope, block, from_pos, last_value)
 	local pos = from_pos or 1
 	local element = block.v[pos]
 	if not element then
@@ -296,7 +336,7 @@ local function eval_expr(scope, block, from_pos, last_value)
 		return pos + 1, scope[element.v]
 	elseif type == "set-word!" then
 		---@cast element SetWord
-		local new_pos, value = eval_expr(scope, block, pos + 1, last_value)
+		local new_pos, value = eval.eval_expr(scope, block, pos + 1, last_value)
 		scope[element.v] = value
 		return new_pos, value
 	elseif type == "word!" then
@@ -305,28 +345,7 @@ local function eval_expr(scope, block, from_pos, last_value)
 		assert(value ~= nil, element.v .. " has no value")
 		if value.fn ~= nil and value.args ~= nil then
 			---@cast value Fn
-			local args = {}
-			pos = pos + 1
-			local i = 1
-			if value.infix then
-				-- Add last value as first argument
-				assert(last_value ~= nil, "Missing left argument for " .. element.v .. " function")
-				table.insert(args, last_value)
-				i = i + 1
-			end
-			while i <= #value.args do
-				local arg_spec = value.args[i]
-				i = i + 1
-				local new_pos, arg_value
-				if arg_spec.eval or arg_spec.eval == nil then
-					new_pos, arg_value = eval_expr(scope, block, pos)
-				else
-					new_pos, arg_value = pos + 1, block.v[pos]
-				end
-				table.insert(args, arg_value)
-				pos = new_pos
-			end
-			return pos, value.fn(scope, table.unpack(args))
+			return eval.handle_fn_call(scope, block, pos, element.v, value, last_value)
 		else
 			return pos + 1, value
 		end
@@ -345,7 +364,7 @@ local function eval_block(scope, block)
 	local last_value = nil
 
 	while pos <= #block.v do
-		pos, last_value = eval_expr(scope, block, pos, last_value)
+		pos, last_value = eval.eval_expr(scope, block, pos, last_value)
 	end
 	if last_value == nil then
 		return none
@@ -431,7 +450,8 @@ ctx["true"] = vtrue
 ctx["false"] = vfalse
 ctx.hello = make_native_fn({
 	args = { { name = "name" } },
-	fn = function(ctx, value)
+	refinements = {},
+	fn = function(_, value)
 		print("Hello " .. table.dumpf(value.v))
 		return none
 	end,
@@ -440,7 +460,7 @@ ctx.hello = make_native_fn({
 ctx["+"] = make_native_fn({
 	args = { { name = "a" }, { name = "b" } },
 	infix = true,
-	fn = function(ctx, a, b)
+	fn = function(_, a, b)
 		return make("number!", a.v + b.v)
 	end,
 })
