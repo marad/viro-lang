@@ -350,7 +350,6 @@ function eval.eval_expr(scope, block, from_pos, last_value)
 			return pos + 1, value
 		end
 	else
-		-- TODO: handling infix functions
 		-- Other values evaluate to themselves
 		return pos + 1, element
 	end
