@@ -29,18 +29,13 @@ require("viro.util")
 ---@field name string? Argument name
 ---@field eval boolean? Should the argument be evaluated before passing?
 
----@class Refinement
----@field name string Refinement variable name
----@field value boolean Does the refinement expect a value?
-
 ---@class Fn : Type
 ---@field body Block?
 ---@field arg_def Block?
 ---@field fn function Function to be executed
 ---@field args FnArg[] Arguments to be collected and passed
----@field refinements Refinement[]? Refinements to be collected
+---@field refinements table<string, boolean>? Refinements to be collected
 ---@field infix boolean
----
 
 ---@class Bool : Type
 ---@field v boolean
@@ -48,6 +43,22 @@ require("viro.util")
 ---@class None : Type
 
 ---@alias Value String | Block | Word | SetWord | GetWord | LitWord | Number | Fn | None
+
+---Contains refinements passed to a function on invocation
+---@class Refinements
+local Refinements = {}
+
+function Refinements.new()
+	local refs = {}
+	setmetatable(refs, { __index = Refinements })
+	return refs
+end
+
+function Refinements:set(name, value)
+	value = value or true
+	self[name] = value
+	return self
+end
 
 --------------------------------------------------------------------------------
 --- Type definitions
@@ -150,7 +161,7 @@ end
 ---@field fn function
 ---@field args FnArg[]
 ---@field infix boolean?
----@field refinements Refinement[]?
+---@field refinements table<string, boolean>?
 
 ---Creates a native function
 ---@param config MakeNativeFnConfig
@@ -165,7 +176,7 @@ end
 ---@field args FnArg[]
 ---@field name string
 ---@field infix boolean?
----@field refinements Refinement[]?
+---@field refinements table<string, boolean>?
 
 ---@param action_config MakeActionConfig
 ---@return Fn
@@ -293,6 +304,7 @@ local eval = {}
 ---@return integer, Value
 function eval.handle_fn_call(scope, block, pos, name, fn, last_value)
 	local args = {}
+	local refinements = Refinements.new()
 	pos = pos + 1
 	local i = 1
 	if fn.infix then
@@ -304,6 +316,7 @@ function eval.handle_fn_call(scope, block, pos, name, fn, last_value)
 	while i <= #fn.args do
 		local arg_spec = fn.args[i]
 		i = i + 1
+		pos = eval.read_refinements(scope, block, pos, name, fn.refinements, refinements)
 		local new_pos, arg_value
 		if arg_spec.eval or arg_spec.eval == nil then
 			new_pos, arg_value = eval.eval_expr(scope, block, pos)
@@ -313,7 +326,44 @@ function eval.handle_fn_call(scope, block, pos, name, fn, last_value)
 		table.insert(args, arg_value)
 		pos = new_pos
 	end
-	return pos, fn.fn(scope, table.unpack(args))
+	pos = eval.read_refinements(scope, block, pos, name, fn.refinements, refinements)
+	return pos, fn.fn(scope, table.unpack(args), refinements)
+end
+
+---@param element Value
+---@return boolean
+local function is_refinement(element)
+	---@diagnostic disable-next-line
+	return type(element.v) == "string" and element.v:sub(1, 2) == "--"
+end
+
+---Tries to read refinements from given position
+---@param scope Object
+---@param block Block
+---@param pos integer
+---@param refinement_defs table<string, boolean> Refinement definitions
+---@param refinements Refinements An output table to insert refinements to
+---@return integer # Returns the next position to read
+function eval.read_refinements(scope, block, pos, fn_name, refinement_defs, refinements)
+	if pos > #block.v then
+		return pos
+	end
+	local element = block.v[pos]
+	while element ~= nil and is_refinement(element) do
+		local name = element.v:sub(3)
+		local needs_value = refinement_defs[element.v]
+		assert(needs_value ~= nil, "Function '" .. fn_name .. "' does not have refinement '" .. name .. "'")
+		if needs_value then
+			local new_pos, value = eval.eval_expr(scope, block, pos + 1)
+			pos = new_pos
+			refinements:set(name, value)
+		else
+			pos = pos + 1
+			refinements:set(name)
+		end
+		element = block.v[pos]
+	end
+	return pos
 end
 
 ---@param block Block
@@ -439,12 +489,7 @@ end
 
 -- TESTS
 
-local code = [[
-    1 + 2 + 3 + 4
-]]
-
 local ctx = env.new()
-
 ctx["true"] = vtrue
 ctx["false"] = vfalse
 ctx.hello = make_native_fn({
@@ -463,6 +508,25 @@ ctx["+"] = make_native_fn({
 		return make("number!", a.v + b.v)
 	end,
 })
+
+ctx["foo"] = make_native_fn({
+	args = {
+		{ name = "first" },
+	},
+	refinements = {
+		["--bar"] = false,
+		["--baz"] = true,
+	},
+	fn = function(_, first, refs)
+		print("First arg:", table.dumpf(first))
+		print("Refinements:", table.dumpf(refs))
+		return none
+	end,
+})
+
+local code = [[
+    foo --bar "hello" --baz 'world
+]]
 
 local block = read_block(code)
 local result = eval_block(ctx, block)
