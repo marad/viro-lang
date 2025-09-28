@@ -261,17 +261,6 @@ local function read_block(code)
 	return grammar:match(code)
 end
 
---local val = read_block([[
---    string!
---    qw!er
---]])
---
---print(table.dumpf(val))
---
---for _, v in pairs(val.v) do
---    print(table.dumpf(v), v.type.v)
---end
-
 --------------------------------------------------------------------------------
 --- Context / Environment
 --------------------------------------------------------------------------------
@@ -428,8 +417,8 @@ end
 --     return make_with_prototype(String, '"' .. value.v .. '"')
 -- end)
 
-local function repl()
-	local scope = env.new()
+local function repl(scope)
+	scope = scope or env.new()
 
 	-- scope.hello = make_native_fn({
 	--     { name = "value" },
@@ -532,3 +521,18 @@ local block = read_block(code)
 local result = eval_block(ctx, block)
 
 print("Result: " .. table.dumpf(result.v))
+
+return {
+	types = types,
+	make_with_prototype = make_with_prototype,
+	make = make,
+	make_fn = make_fn,
+	make_native_fn = make_native_fn,
+	make_action = make_action,
+	register_type = register_type,
+	read_block = read_block,
+	eval_expr = eval.eval_expr,
+	eval_block = eval_block,
+	env = env,
+	repl = repl,
+}
