@@ -16,3 +16,16 @@ function table.dump(o, indent)
 		return tostring(o)
 	end
 end
+
+
+function table.dumpf(o)
+	if type(o) == "table" then
+		local result = {}
+		for k, v in pairs(o) do
+			table.insert(result, k .. " = " .. table.dumpf(v))
+		end
+		return "{" .. table.concat(result, ", ") .. "}"
+	else
+		return tostring(o)
+	end
+end
