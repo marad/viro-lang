@@ -75,6 +75,6 @@ RunTests({
 
 		-- 1 foo foo x:
 
-		print(table.dump(result))
+		--print(table.dump(result))
 	end,
 })

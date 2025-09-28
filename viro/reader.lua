@@ -59,7 +59,7 @@ end
 ---@param fn_word Word Word that evaluates to a function
 ---@param args Node[] argument nodes
 local function fn_call_node(fn_word, args)
-	return { type = "fn-call", fn = fn_word, args = args }
+	return { type = "fn-call", fn = fn_word, args = args, prec = 1 }
 end
 
 ---@param op Base Operation to perform
@@ -158,6 +158,7 @@ end
 ---
 ----------------------------------------------------------------------------------
 
+
 --- Reads the block from given position.
 --- Implements the Shunting Yard algorithm
 ---@param ctx Context
@@ -177,9 +178,9 @@ function reader.read(ctx, block, from_idx)
 			break
 		end
 
-		print(expr.type)
-		if expr.type == "op" then
+		if expr.prec ~= nil then
 			---@cast expr OpNode
+			local should_pop = false 
 			while #holding > 0 and holding:peek().prec >= expr.prec do
 				local op = holding:pop()
 				output:push(op)
@@ -188,6 +189,8 @@ function reader.read(ctx, block, from_idx)
 		else
 			output:push(expr)
 		end
+		print(table.dumpf(output))
+		print(table.dumpf(holding))
 	end
 
 	while #holding > 0 do
