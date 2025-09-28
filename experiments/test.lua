@@ -129,6 +129,10 @@ local function make_fn(config, prototype)
 	---@diagnostic disable-next-line
 	assert(config.args ~= nil, "Args required for native function")
 	assert(config.fn ~= nil, "Function declaration is required for a function")
+	if config.infix then
+		assert(#config.args == 2, "Infix functions may have only 2 arguments")
+		assert(config.args[1].eval ~= false, "First argument of infix function cannot be unevaluated")
+	end
 	prototype = prototype or Fn
 	local fn = make_with_prototype(prototype)
 	fn.body = config.body
@@ -300,9 +304,19 @@ local function eval_expr(scope, block, from_pos, last_value)
 		local value = scope[element.v]
 		assert(value ~= nil, element.v .. " has no value")
 		if value.fn ~= nil and value.args ~= nil then
+			---@cast value Fn
 			local args = {}
 			pos = pos + 1
-			for _, arg_spec in ipairs(value.args) do
+			local i = 1
+			if value.infix then
+				-- Add last value as first argument
+				assert(last_value ~= nil, "Missing left argument for " .. element.v .. " function")
+				table.insert(args, last_value)
+				i = i + 1
+			end
+			while i <= #value.args do
+				local arg_spec = value.args[i]
+				i = i + 1
 				local new_pos, arg_value
 				if arg_spec.eval or arg_spec.eval == nil then
 					new_pos, arg_value = eval_expr(scope, block, pos)
@@ -328,12 +342,16 @@ end
 ---@return Value
 local function eval_block(scope, block)
 	local pos = 1
-	local last_value = make("word!", "none")
+	local last_value = nil
 
 	while pos <= #block.v do
 		pos, last_value = eval_expr(scope, block, pos, last_value)
 	end
-	return last_value
+	if last_value == nil then
+		return none
+	else
+		return last_value
+	end
 end
 
 -- String.mold = make_native_fn({
@@ -404,7 +422,7 @@ end
 -- TESTS
 
 local code = [[
-    hello true
+    1 + 2 + 3 + 4
 ]]
 
 local ctx = env.new()
@@ -416,6 +434,14 @@ ctx.hello = make_native_fn({
 	fn = function(ctx, value)
 		print("Hello " .. table.dumpf(value.v))
 		return none
+	end,
+})
+
+ctx["+"] = make_native_fn({
+	args = { { name = "a" }, { name = "b" } },
+	infix = true,
+	fn = function(ctx, a, b)
+		return make("number!", a.v + b.v)
 	end,
 })
 
