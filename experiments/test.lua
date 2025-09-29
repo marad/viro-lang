@@ -212,6 +212,67 @@ local vfalse = make("bool!", false)
 local none = make("none!", "none")
 
 --------------------------------------------------------------------------------
+--- Lua Proxy
+--------------------------------------------------------------------------------
+
+local Proxy = {}
+
+local prototypes = {
+	["string"] = String,
+	["number"] = Number,
+	["boolean"] = Bool,
+}
+
+---Wraps Lua value into Viro value
+---@param value any lua value to wrap into Viro value
+function Proxy.wrap_value(value)
+	local type = type(value)
+	local prototype = prototypes[type]
+	local result = none
+
+	if prototype ~= nil then
+		result = make_with_prototype(prototype, value)
+	elseif type == "function" then
+		local arg_count = debug.getinfo(value, "u").nparams
+		local args = {}
+		for i = 1, arg_count do
+			table.insert(args, { name = "arg" .. i })
+		end
+		return make_native_fn({
+			args = args,
+			fn = function(_, ...)
+				local params = {}
+				for _, param in ipairs(table.pack(...)) do
+					table.insert(params, param.v or param.fn)
+				end
+				return Proxy.wrap_value(value(table.unpack(params)))
+			end,
+		})
+	elseif type == "table" then
+		return Proxy.lua2viro(value)
+	end
+	return result
+end
+
+---Creates a proxy for a lua object that wraps
+---@param table table table to proxy
+---@return table
+function Proxy.lua2viro(table)
+	local proxy = {}
+	setmetatable(proxy, {
+		__index = function(t, key)
+			local value = Proxy.wrap_value(table[key])
+			rawset(t, key, value)
+			return value
+		end,
+		__newindex = function(t, key, value)
+			rawset(t, key, value)
+		end,
+	})
+	return proxy
+end
+
+--------------------------------------------------------------------------------
 --- Reader
 --------------------------------------------------------------------------------
 
