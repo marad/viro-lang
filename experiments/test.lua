@@ -356,13 +356,13 @@ end
 local eval = {}
 
 ---Handles calling a function
----@param scope Object
+---@param ctx Object
 ---@param block Block
 ---@param pos integer
 ---@param fn Fn
 ---@param last_value Value
 ---@return integer, Value
-function eval.handle_fn_call(scope, block, pos, name, fn, last_value)
+function eval.handle_fn_call(ctx, block, pos, name, fn, last_value)
 	local args = {}
 	local refinements = Refinements.new()
 	pos = pos + 1
@@ -376,18 +376,18 @@ function eval.handle_fn_call(scope, block, pos, name, fn, last_value)
 	while i <= #fn.args do
 		local arg_spec = fn.args[i]
 		i = i + 1
-		pos = eval.read_refinements(scope, block, pos, name, fn.refinements, refinements)
+		pos = eval.read_refinements(ctx, block, pos, name, fn.refinements, refinements)
 		local new_pos, arg_value
 		if arg_spec.eval or arg_spec.eval == nil then
-			new_pos, arg_value = eval.eval_expr(scope, block, pos)
+			new_pos, arg_value = eval.eval_expr(ctx, block, pos)
 		else
 			new_pos, arg_value = pos + 1, block.v[pos]
 		end
 		table.insert(args, arg_value)
 		pos = new_pos
 	end
-	pos = eval.read_refinements(scope, block, pos, name, fn.refinements, refinements)
-	return pos, fn.fn(scope, table.unpack(args), refinements)
+	pos = eval.read_refinements(ctx, block, pos, name, fn.refinements, refinements)
+	return pos, fn.fn(ctx, table.unpack(args), refinements)
 end
 
 ---@param element Value
@@ -398,13 +398,13 @@ local function is_refinement(element)
 end
 
 ---Tries to read refinements from given position
----@param scope Object
+---@param ctx Object
 ---@param block Block
 ---@param pos integer
 ---@param refinement_defs table<string, boolean> Refinement definitions
 ---@param refinements Refinements An output table to insert refinements to
 ---@return integer # Returns the next position to read
-function eval.read_refinements(scope, block, pos, fn_name, refinement_defs, refinements)
+function eval.read_refinements(ctx, block, pos, fn_name, refinement_defs, refinements)
 	if pos > #block.v then
 		return pos
 	end
@@ -414,7 +414,7 @@ function eval.read_refinements(scope, block, pos, fn_name, refinement_defs, refi
 		local needs_value = refinement_defs[element.v]
 		assert(needs_value ~= nil, "Function '" .. fn_name .. "' does not have refinement '" .. name .. "'")
 		if needs_value then
-			local new_pos, value = eval.eval_expr(scope, block, pos + 1)
+			local new_pos, value = eval.eval_expr(ctx, block, pos + 1)
 			pos = new_pos
 			refinements:set(name, value)
 		else
@@ -429,7 +429,7 @@ end
 ---@param block Block
 ---@param from_pos integer
 ---@return integer, Value
-function eval.eval_expr(scope, block, from_pos, last_value)
+function eval.eval_expr(ctx, block, from_pos, last_value)
 	local pos = from_pos or 1
 	local element = block.v[pos]
 	if not element then
@@ -443,19 +443,19 @@ function eval.eval_expr(scope, block, from_pos, last_value)
 		return pos + 1, make("word!", element.v)
 	elseif type == "get-word!" then
 		---@cast element GetWord
-		return pos + 1, scope[element.v]
+		return pos + 1, ctx[element.v]
 	elseif type == "set-word!" then
 		---@cast element SetWord
-		local new_pos, value = eval.eval_expr(scope, block, pos + 1, last_value)
-		scope[element.v] = value
+		local new_pos, value = eval.eval_expr(ctx, block, pos + 1, last_value)
+		ctx[element.v] = value
 		return new_pos, value
 	elseif type == "word!" then
 		---@cast element Word
-		local value = scope[element.v]
+		local value = ctx[element.v]
 		assert(value ~= nil, element.v .. " has no value")
 		if value.fn ~= nil and value.args ~= nil then
 			---@cast value Fn
-			return eval.handle_fn_call(scope, block, pos, element.v, value, last_value)
+			return eval.handle_fn_call(ctx, block, pos, element.v, value, last_value)
 		else
 			return pos + 1, value
 		end
@@ -465,15 +465,15 @@ function eval.eval_expr(scope, block, from_pos, last_value)
 	end
 end
 
----@param scope any
+---@param ctx any
 ---@param block Block
 ---@return Value
-local function eval_block(scope, block)
+local function eval_block(ctx, block)
 	local pos = 1
 	local last_value = nil
 
 	while pos <= #block.v do
-		pos, last_value = eval.eval_expr(scope, block, pos, last_value)
+		pos, last_value = eval.eval_expr(ctx, block, pos, last_value)
 	end
 	if last_value == nil then
 		return none
@@ -488,8 +488,8 @@ end
 --     return make_with_prototype(String, '"' .. value.v .. '"')
 -- end)
 
-local function repl(scope)
-	scope = scope or env.new()
+local function repl(ctx)
+	ctx = ctx or env.new()
 
 	-- scope.hello = make_native_fn({
 	--     { name = "value" },
@@ -525,7 +525,7 @@ local function repl(scope)
 		io.write("> ")
 		local code = io.read()
 		local block = read_block(code)
-		local value = eval_block(scope, block)
+		local value = eval_block(ctx, block)
 
 		if value ~= nil and value ~= none then
 			print(table.dump(value.v))
