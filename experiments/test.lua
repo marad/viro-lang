@@ -86,16 +86,28 @@ end
 -- For bootstraping we need to first "manually" setup the String and Object types
 
 local Object = {}
+local Series = {
+	series = true,
+	index = 1,
+}
 local String = {}
-local Word = {}
-local SetWord = {}
-local GetWord = {}
-local LitWord = {}
-local Number = {}
+setmetatable(String, { __index = Series })
 local Block = {}
+setmetatable(Block, { __index = Series })
+local Word = {}
+setmetatable(Word, { __index = String })
+local SetWord = {}
+setmetatable(SetWord, { __index = Word })
+local GetWord = {}
+setmetatable(GetWord, { __index = Word })
+local LitWord = {}
+setmetatable(LitWord, { __index = Word })
+local Number = {}
 local Fn = {}
 local NativeFn = {}
+setmetatable(NativeFn, { __index = Fn })
 local Action = {}
+setmetatable(Action, { __index = Fn })
 local Type = {}
 local Bool = {}
 local None = {}
@@ -110,25 +122,24 @@ end
 ---@param definition table
 ---@param type string
 ---@param kind string
----@param prototype any?
-local function register_type(definition, type, kind, prototype)
-	prototype = prototype or Object
-	types[type] = make_with_prototype(prototype, definition)
+local function register_type(definition, type, kind)
+	types[type] = make_with_prototype(Object, definition)
 	definition.type = s(type)
 	definition.kind = s(kind)
 end
 
 register_type(Object, "object!", "object!")
+register_type(Series, "series!", "series!")
 register_type(Block, "block!", "block!")
 register_type(String, "string!", "string!")
-register_type(Word, "word!", "string!", String)
-register_type(SetWord, "set-word!", "string!", Word)
-register_type(GetWord, "get-word!", "string!", Word)
-register_type(LitWord, "lit-word!", "string!", Word)
+register_type(Word, "word!", "string!")
+register_type(SetWord, "set-word!", "string!")
+register_type(GetWord, "get-word!", "string!")
+register_type(LitWord, "lit-word!", "string!")
 register_type(Number, "number!", "number!")
 register_type(Fn, "fn!", "fn!")
-register_type(NativeFn, "native!", "native!", Fn)
-register_type(Action, "action!", "action!", Fn)
+register_type(NativeFn, "native!", "native!")
+register_type(Action, "action!", "action!")
 register_type(Type, "type!", "type!")
 register_type(Bool, "bool!", "bool!")
 register_type(None, "none!", "none!")
@@ -137,7 +148,6 @@ register_type(None, "none!", "none!")
 ---@param prototype Type?
 ---@return Fn
 local function make_fn(config, prototype)
-	---@type Fn
 	---@diagnostic disable-next-line
 	assert(config.args ~= nil, "Args required for native function")
 	assert(config.fn ~= nil, "Function declaration is required for a function")
