@@ -61,7 +61,7 @@ function Refinements:set(name, value)
 end
 
 --------------------------------------------------------------------------------
---- Type definitions
+--- Basic make function
 --------------------------------------------------------------------------------
 
 local types = {}
@@ -79,17 +79,29 @@ end
 local function make(type_name, lua_value)
 	local prototype = types[type_name]
 	assert(prototype ~= nil, "Type " .. type_name .. " is undefined!")
-
+	print("FOO: " .. table.dumpf(getmetatable(prototype.v)))
+	local mt = getmetatable(prototype.v)
+	--TODO: if proxied - use original
 	return make_with_prototype(prototype.v, lua_value)
 end
 
 -- For bootstraping we need to first "manually" setup the String and Object types
 
+--------------------------------------------------------------------------------
+--- Type definitions
+--------------------------------------------------------------------------------
+
+local ViroValue = {
+	is_viro_value = true,
+}
+
 local Object = {}
+setmetatable(Object, { __index = ViroValue })
 local Series = {
 	series = true,
 	index = 1,
 }
+setmetatable(Series, { __index = ViroValue })
 local String = {}
 setmetatable(String, { __index = Series })
 local Block = {}
@@ -103,46 +115,25 @@ setmetatable(GetWord, { __index = Word })
 local LitWord = {}
 setmetatable(LitWord, { __index = Word })
 local Number = {}
+setmetatable(Number, { __index = ViroValue })
 local Fn = {}
+setmetatable(Fn, { __index = ViroValue })
 local NativeFn = {}
 setmetatable(NativeFn, { __index = Fn })
 local Action = {}
 setmetatable(Action, { __index = Fn })
 local Type = {}
+setmetatable(Type, { __index = ViroValue })
 local Bool = {}
+setmetatable(Bool, { __index = ViroValue })
 local None = {}
+setmetatable(None, { __index = ViroValue })
 
 ---@return String
 local function s(value)
 	---@diagnostic disable-next-line
 	return make_with_prototype(String, value)
 end
-
--- When String and Object types are properly set up we can register remaining types
----@param definition table
----@param type string
----@param kind string
-local function register_type(definition, type, kind)
-	types[type] = make_with_prototype(Object, definition)
-	definition.type = s(type)
-	definition.kind = s(kind)
-end
-
-register_type(Object, "object!", "object!")
-register_type(Series, "series!", "series!")
-register_type(Block, "block!", "block!")
-register_type(String, "string!", "string!")
-register_type(Word, "word!", "string!")
-register_type(SetWord, "set-word!", "string!")
-register_type(GetWord, "get-word!", "string!")
-register_type(LitWord, "lit-word!", "string!")
-register_type(Number, "number!", "number!")
-register_type(Fn, "fn!", "fn!")
-register_type(NativeFn, "native!", "native!")
-register_type(Action, "action!", "action!")
-register_type(Type, "type!", "type!")
-register_type(Bool, "bool!", "bool!")
-register_type(None, "none!", "none!")
 
 ---@param config Fn
 ---@param prototype Type?
@@ -194,10 +185,13 @@ local function make_action(action_config)
 	local name = action_config.name
 	local fn_config = {
 		args = action_config.args,
-		fn = function(_, value, ...)
+		fn = function(ctx, value, ...)
+			print("Invoking action " .. name .. " on " .. table.dumpf(value))
+			print("MT: " .. table.dumpf(getmetatable(value)))
+			print("MTMT: " .. table.dumpf(getmetatable(getmetatable(value))))
 			local method = value[name]
 			if method ~= nil then
-				return method.fn(value, ...)
+				return method.fn(ctx, value, ...)
 			else
 				error("'" .. name .. "' not supported for " .. value.type.v .. " type")
 			end
@@ -207,9 +201,9 @@ local function make_action(action_config)
 	return make_fn(fn_config, Action)
 end
 
-local vtrue = make("bool!", true)
-local vfalse = make("bool!", false)
-local none = make("none!", "none")
+local vtrue = make_with_prototype(Bool, true)
+local vfalse = make_with_prototype(Bool, false)
+local none = make_with_prototype(None, "none")
 
 --------------------------------------------------------------------------------
 --- Lua Proxy
@@ -225,12 +219,14 @@ local prototypes = {
 
 ---Wraps Lua value into Viro value
 ---@param value any lua value to wrap into Viro value
-function Proxy.wrap_value(value)
+function Proxy.wrap_value(value, dont_unwrap_fn_params)
 	local type = type(value)
 	local prototype = prototypes[type]
 	local result = none
 
-	if prototype ~= nil then
+	if value == nil then
+		return none
+	elseif prototype ~= nil then
 		result = make_with_prototype(prototype, value)
 	elseif type == "function" then
 		local arg_count = debug.getinfo(value, "u").nparams
@@ -241,15 +237,21 @@ function Proxy.wrap_value(value)
 		return make_native_fn({
 			args = args,
 			fn = function(_, ...)
-				local params = {}
-				for _, param in ipairs(table.pack(...)) do
-					table.insert(params, param.v or param.fn)
+				if dont_unwrap_fn_params then
+					return Proxy.wrap_value(value(...), dont_unwrap_fn_params)
+				else
+					local params = {}
+					for _, param in ipairs(table.pack(...)) do
+						table.insert(params, param.v or param.fn)
+					end
+					return Proxy.wrap_value(value(table.unpack(params)), dont_unwrap_fn_params)
 				end
-				return Proxy.wrap_value(value(table.unpack(params)))
 			end,
 		})
+	elseif value.is_viro_value then
+		return value
 	elseif type == "table" then
-		return Proxy.lua2viro(value)
+		return Proxy.lua2viro(value, dont_unwrap_fn_params)
 	end
 	return result
 end
@@ -257,19 +259,105 @@ end
 ---Creates a proxy for a lua object that wraps
 ---@param table table table to proxy
 ---@return table
-function Proxy.lua2viro(table)
+function Proxy.lua2viro(table, dont_unwrap_fn_params)
 	local proxy = {}
 	setmetatable(proxy, {
+		proxied = table,
 		__index = function(t, key)
-			local value = Proxy.wrap_value(table[key])
+			local value = Proxy.wrap_value(table[key], dont_unwrap_fn_params)
 			rawset(t, key, value)
 			return value
 		end,
 		__newindex = function(t, key, value)
-			rawset(t, key, value)
+			local wrapped = Proxy.wrap_value(value, dont_unwrap_fn_params)
+			rawset(t, key, wrapped)
 		end,
 	})
 	return proxy
+end
+
+--------------------------------------------------------------------------------
+--- Register all base types within Viro
+--------------------------------------------------------------------------------
+
+-- When String and Object types are properly set up we can register remaining types
+---@param definition table
+---@param type string
+---@param kind string
+local function register_type(definition, type, kind)
+	types[type] = make_with_prototype(Object, Proxy.lua2viro(definition, true))
+	definition.type = type
+	definition.kind = kind
+end
+
+register_type(Object, "object!", "object!")
+register_type(Series, "series!", "series!")
+register_type(Block, "block!", "block!")
+register_type(String, "string!", "string!")
+register_type(Word, "word!", "string!")
+register_type(SetWord, "set-word!", "string!")
+register_type(GetWord, "get-word!", "string!")
+register_type(LitWord, "lit-word!", "string!")
+register_type(Number, "number!", "number!")
+register_type(Fn, "fn!", "fn!")
+register_type(NativeFn, "native!", "native!")
+register_type(Action, "action!", "action!")
+register_type(Type, "type!", "type!")
+register_type(Bool, "bool!", "bool!")
+register_type(None, "none!", "none!")
+
+--------------------------------------------------------------------------------
+--- Basic series implementation
+--------------------------------------------------------------------------------
+
+function Series:copy(_)
+	return self
+end
+
+function Series:length()
+	return 0
+end
+
+function Series:get_at()
+	return nil
+end
+
+function Series:set_at(_, _)
+	return nil
+end
+
+function Series:next()
+	print(table.dumpf(getmetatable(self)))
+	local new = self:copy(1)
+	new.index = self.index + 1
+	if new.index > new:length() then
+		new.index = new:length() + 1
+	end
+	return new
+end
+
+function Series:back()
+	local new = self:copy(1)
+	new.index = self.index - 1
+	if new.index < 1 then
+		new.index = 1
+	end
+	return new
+end
+
+function Block:length()
+	print(table.dumpf(self))
+	return #self.v
+end
+
+function Block:copy(from_index)
+	local content = {}
+	local index = from_index or self.index
+	while index <= #self.v do
+		table.insert(content, self.v[index])
+		index = index + 1
+	end
+	return make_with_prototype(Block, content)
 end
 
 --------------------------------------------------------------------------------
@@ -584,8 +672,39 @@ ctx["foo"] = make_native_fn({
 	end,
 })
 
+ctx["copy"] = make_action({
+	args = { { name = "series" } },
+	name = "copy",
+})
+
+ctx["at"] = make_action({
+	args = { { name = "series" }, { name = "index" } },
+	name = "at",
+})
+
+ctx["length?"] = make_action({
+	args = { { name = "series" } },
+	name = "length",
+})
+
+ctx.next = make_action({
+	args = { { name = "series" } },
+	name = "next",
+})
+
+-- String.bar = make_native_fn({
+-- 	args = { { name = "value" } },
+-- 	fn = function(...)
+-- 		local args = table.pack(...)
+-- 		print(table.dumpf(args))
+-- 		return none
+-- 	end,
+-- })
+
 local code = [[
-    foo --bar "hello" --baz 'world
+    ;foo --bar "hello" --baz 'world
+    length? [1 2 3]
+    next [1 2 3]
 ]]
 
 local block = read_block(code)
